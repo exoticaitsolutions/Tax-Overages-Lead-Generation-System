@@ -5,6 +5,8 @@ from selenium.webdriver.chrome.service import Service
 import time
 import csv, os
 import pandas as pd
+from datetime import datetime
+
 # Set up the Selenium WebDriver (here using Chrome)
 driver = webdriver.Chrome()
 
@@ -55,10 +57,13 @@ except Exception as e:
 driver.quit()
 
 # Save data to CSV file
-output = os.path.join(os.getcwd(), "output")
+output = os.path.join(os.getcwd(), "output_folder")
 if not os.path.exists(output):
         os.makedirs(output)
-csv_file_path = os.path.join(output, 'scraped_data.csv')
+county_name = 'polkcountyclerk.net'
+timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+filename = f'data_{county_name}_{timestamp}.csv'
+csv_file_path = os.path.join(output, f'{filename}')
 # csv_file_path = 'scraped_data.csv'
 with open(csv_file_path, 'w', newline='', encoding='utf-8') as csvfile:
     csv_writer = csv.writer(csvfile)
