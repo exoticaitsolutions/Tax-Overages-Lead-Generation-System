@@ -1,46 +1,14 @@
-"""
-scrap_sumterclerk_county.py
-This script performs web scraping and data processing tasks related to 
-the Sumter County Clerk's office. It uses Selenium to automate the downloading of PDF
-files from a specified URL and then processes these PDFs to extract
-tabular data, which is subsequently saved to a CSV file.
-
-Requirements:
-- Selenium
-- pdfplumber
-- pandas
-- screeninfo
-- webdriver-manager
-Usage:
-Run the script as the main program to execute the entire workflow, 
-including downloading the PDF and converting it to CSV format.
-Dependencies:
-- Common module with delete_folder and delete_path functions.
-"""
-
-# Standard library imports
-import csv
-import time
-import re
 import os
-
+import pytesseract
+from pdf2image import convert_from_path
+import re
+import csv
 from datetime import datetime
 
-# Third-party imports
-import pytesseract
-from selenium import webdriver
-from PIL import Image
-
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.action_chains import ActionChains
-from selenium.webdriver.chrome.options import Options
 from screeninfo import get_monitors
-from webdriver_manager.chrome import ChromeDriverManager
-from pdf2image import convert_from_path
+from Common import get_the_tesseract_path
 
-# Local application imports
-from Common import checkead_and_read, get_poppler_path, get_the_tesseract_path
+
 # Application Settings
 REPORT_FOLDER = os.path.join(os.getcwd(), "output")
 DOWNLOAD_FOLDER = os.path.join(os.getcwd(), "downloads")
@@ -52,11 +20,17 @@ APP_URL = "https://www.fredericksburgva.gov/1142/Surplus-Funds"
 monitor = get_monitors()[0]
 WIDTH = monitor.width
 HEIGHT = monitor.height
-# Path to Tesseract executable
-get_the_tesseract_path()
-# Path to the PDF file
-pdf_path = checkead_and_read(os.path.join(DOWNLOAD_FOLDER, '_BU11_7-pages-1.pdf'))
 
+if not os.path.exists(DOWNLOAD_FOLDER):
+        os.makedirs(DOWNLOAD_FOLDER)
+if not os.path.exists(REPORT_FOLDER):
+        os.makedirs(REPORT_FOLDER)
+# Path to Tesseract executable
+pytesseract.pytesseract.tesseract_cmd = get_the_tesseract_path()
+
+# Path to the PDF file
+# pdf_path = r'C:\Users\rohit\Downloads\_BU11_7.pdf'
+pdf_path = os.path.join(DOWNLOAD_FOLDER, '_BU11_7-pages-1.pdf')
 delimiter="##"
 delimiter2="|"
 
@@ -93,9 +67,8 @@ def classify_data(data):
 
 
 # Convert PDF pages to images
-poppler_path = checkead_and_read(get_poppler_path())
-print('poppler_path', poppler_path)
-pages = convert_from_path(pdf_path, poppler_path=poppler_path)
+pages = convert_from_path(pdf_path, 300)
+
 # Extract text from each page
 data_str = ""
 for page in pages:
@@ -170,7 +143,8 @@ for data in grouped_data:
     print(data)
 
 # Write the grouped_data to a CSV file
-csv_file_path = 'output_folder/output.csv'
+# csv_file_path = 'output_folder/output.csv'
+csv_file_path = os.path.join( REPORT_FOLDER, f'{FILE_NAME}_{CURRENT_DATE.strftime("%Y_%B_%d")}.{FILE_TYPE}')
 with open(csv_file_path, mode='w', newline='') as file:
     writer = csv.writer(file)
     writer.writerow(["CASE", "ACCOUNT OF", "COLLECTION DATE", "PAY DATE", "RESTITUTION BALANCE", "RESTITUTION INTEREST DT", "REST INTEREST BALANCE"]) 
@@ -180,4 +154,3 @@ with open(csv_file_path, mode='w', newline='') as file:
 print("Data extraction complete and CSV file created.")
 
 print("Data extraction complete.")
-
