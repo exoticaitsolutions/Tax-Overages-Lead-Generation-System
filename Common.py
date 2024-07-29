@@ -51,7 +51,9 @@ def get_the_tesseract_path():
     if os_name == 'Windows':
         # For Windows
         tesseract_path = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-        pytesseract.pytesseract.tesseract_cmd = fr'{tesseract_path}'
+        pytesseract.pytesseract.tesseract_cmd = tesseract_path
+        os.environ['TESSDATA_PREFIX'] = r"C:\Program Files\Tesseract-OCR\tessdata\\"
+        # tesseract_path = r'C:\Program Files\Tesseract-OCR'
     elif os_name == 'Darwin':
         # For macOS
         tesseract_path = '/usr/local/bin/tesseract'
@@ -62,6 +64,7 @@ def get_the_tesseract_path():
         pytesseract.pytesseract.tesseract_cmd = tesseract_path
     else:
         raise EnvironmentError(f"Unsupported operating system: {os_name}")
+    
     print(f"Tesseract path set to: {tesseract_path}")
     return tesseract_path
 
