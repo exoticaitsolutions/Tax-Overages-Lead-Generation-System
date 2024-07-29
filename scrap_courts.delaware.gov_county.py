@@ -4,7 +4,6 @@ from selenium.webdriver.common.by import By
 from time import sleep
 import pandas as pd
 import os
-from datetime import datetime
 
 # Initialize the WebDriver
 driver = webdriver.Chrome()
@@ -65,17 +64,14 @@ print("Court-Held Amount data:", df['Court-Held\nAmount'].head())
 
 # Create a new DataFrame with the columns of interest
 new_df = pd.DataFrame(columns=columns_of_interest)
-county_name = 'courts.delaware.gov'
-timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-filename = f'data_{county_name}_{timestamp}.csv'
 
 # Map and insert data
 for new_col, old_col in mapping.items():
     if old_col in df.columns:
         if new_col == "Prior Owner":
             # Combine 'First Name' and 'Last Name' into 'Prior Owner'
-            if 'First Name' in df.columns and 'Last Name' in df.columns:
-                new_df[new_col] = df['First Name'].astype(str) + ' ' + df['Last Name'].astype(str)
+            if 'First Name' in df.columns:
+                new_df[new_col] = df['First Name'].astype(str)
             else:
                 new_df[new_col] = None
         else:
@@ -87,11 +83,4 @@ for new_col, old_col in mapping.items():
 new_df = new_df.fillna('null')
 os.remove('table_data.csv')
 # Save the new DataFrame to a new CSV file
-# new_df.to_csv('new_table_data.csv', index=False)
-output_folder = 'output_folder'
-# Create the folder if it doesn't exist
-os.makedirs(output_folder, exist_ok=True)
-new_filename = os.path.join(output_folder, f'{filename}')
-
-# Save the new DataFrame to a new CSV file
-new_df.to_csv(new_filename, index=False)
+new_df.to_csv('new_table_data.csv', index=False)
