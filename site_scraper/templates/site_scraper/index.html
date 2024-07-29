@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tax Overages Lead Generation System</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            border-radius: 5px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        input[type="text"],
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            box-sizing: border-box;
+            font-size: 16px;
+            background-color: white;
+            font-weight: bold;
+
+        }
+
+        .button-group-1 {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .scrapCounty {
+            margin-top: 5px;
+            padding: 10px;
+            border: none;
+            border-radius: 3px;
+            background-color: #5e89d9;
+            color: #fff;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            font-weight: bold;
+            width: 100%;
+            margin-right: 5px;
+        }
+
+        .integrateSkip {
+            margin-top: 5px;
+            padding: 10px;
+            border: none;
+            border-radius: 3px;
+            background-color: #8d8585;
+            color: #fff;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            font-weight: bold;
+            width: 100%;
+            margin-right: 5px;
+        }
+
+        .closeWindow {
+            margin-top: 5px;
+            padding: 10px;
+            border: none;
+            border-radius: 3px;
+            background-color: #5e89d9;
+            color: #fff;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            font-weight: bold;
+            width: 100%;
+        }
+
+        .integrateCRM {
+            margin-top: 5px;
+            padding: 10px;
+            border: none;
+            border-radius: 3px;
+            background-color: #8d8585;
+            color: #fff;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            font-weight: bold;
+            width: 100%;
+        }
+
+        .button-group-2 {
+            margin-top: 10px;
+            display: flex;
+        }
+
+        button:hover {}
+
+        .output {
+            margin-top: 20px;
+            padding: 100px 15px 15px 15px;
+            background-color: white;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                width: 95%;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .button-group-1 {
+                display: block;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .button-group-2 {
+                display: block;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        
+        <h1>Tax Overages Lead Generation System</h1>
+
+        <div class="form-group">
+            <label for="county">Select a County for Scraping:</label>
+            <select id="county">
+                <option value="Delaware County">Delaware County</option>
+                <option value="Afganistan County">Afganistan County</option>
+                <option value="India County">India County</option>
+                <option value="Canada County">Canada County</option>
+            </select>
+        </div>
+
+        <div class="button-group-1">
+            <button id="scrapCounty" class="scrapCounty">Scrap County Website</button>
+            <button id="closeWindow" class="closeWindow">Close Window</button>
+        </div>
+
+        <div class="button-group-2">
+            <button class="integrateSkip">Integrate with Skip Matrix</button>
+            <button class="integrateCRM">Integrate with CRM</button>
+        </div>
+
+        <h2>Output:</h2>
+        <div class="output">
+
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('scrapCounty').addEventListener('click', function() {
+            var county = document.getElementById('county').value;
+
+            // Check if the selected option is "Delaware County"
+            if (county === "Delaware County") {
+                // Redirect to the Django view for scraping
+                window.location.href = `/scrap-county/?county=${encodeURIComponent(county)}`;
+            } else {
+                // Optionally handle other cases or show an alert
+                alert('Currently, only "Delaware County" is available for scraping. Please select another county.');
+            }
+        });
+
+        document.getElementById('closeWindow').addEventListener('click', function() {
+            window.close();
+        });
+
+        // Add more event listeners for other buttons as needed
+    </script>
+</body>
+
+</html>
