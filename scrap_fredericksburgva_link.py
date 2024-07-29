@@ -1,45 +1,26 @@
-"""
-scrap_sumterclerk_county.py
-This script performs web scraping and data processing tasks related to 
-the Sumter County Clerk's office. It uses Selenium to automate the downloading of PDF
-files from a specified URL and then processes these PDFs to extract
-tabular data, which is subsequently saved to a CSV file.
-
-Requirements:
-- Selenium
-- pdfplumber
-- pandas
-- screeninfo
-- webdriver-manager
-Usage:
-Run the script as the main program to execute the entire workflow, 
-including downloading the PDF and converting it to CSV format.
-Dependencies:
-- Common module with delete_folder and delete_path functions.
-"""
-
 # Standard library imports
-import time
 import re
+import time
 import os
-
 from datetime import datetime
 
 # Third-party imports
+from pdf2image import convert_from_path
+import pdfplumber
 import pytesseract
+import pandas as pd
 from selenium import webdriver
-from PIL import Image
-
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from screeninfo import get_monitors
 from webdriver_manager.chrome import ChromeDriverManager
-from pdf2image import convert_from_path
 
 # Local application imports
-from Common import get_the_tesseract_path
+from Common import delete_folder, delete_path, get_the_tesseract_path
 
 # Application Settings
 REPORT_FOLDER = os.path.join(os.getcwd(), "output")
@@ -53,12 +34,10 @@ monitor = get_monitors()[0]
 WIDTH = monitor.width
 HEIGHT = monitor.height
 
-
 def initialize_driver(download_dir):
     """Initialize and return a Selenium WebDriver with specified options."""
     chrome_options = Options()
     window_size = f"{WIDTH},{HEIGHT}"
-    print(f"Window Size: {window_size}")
     chrome_options.add_argument("--headless")
     chrome_options.add_argument(f"--window-size={window_size}")
     chrome_options.add_argument("--disable-notifications")
@@ -80,42 +59,12 @@ def initialize_driver(download_dir):
     service = Service(chromedriver_path)
     return webdriver.Chrome(service=service, options=chrome_options)
 
-
-def check_file_downloaded(download_dir, filename):
-    """Check if the specified file has been downloaded."""
-    files = os.listdir(download_dir)
-    if filename in files:
-        print(f"File '{filename}' successfully downloaded.")
-        return True
-    print(f"File '{filename}' not found in the download directory.")
-    return False
-
-
-def download_pdf(driver_instance, xpath, expected_filename):
-    """Download the PDF file from the specified URL."""
-    checked = check_file_downloaded(DOWNLOAD_FOLDER, expected_filename)
-    if checked:
-        download_pdf = os.path.join(DOWNLOAD_FOLDER, expected_filename)
-    else:
-        print(f'Openign the url {APP_URL}')
-        driver.get(APP_URL)
-        actions = ActionChains(driver)
-            # Locate the download element
-        download_element = driver_instance.find_element(By.XPATH, xpath)
-        actions = ActionChains(driver)
-        actions.move_to_element(download_element).perform()
-        download_element.click()
-        print('Download element clicked successfully')
-        download_pdf = os.path.join(DOWNLOAD_FOLDER, expected_filename)
-        time.sleep(5)
-    return download_pdf
-# Function to classify data into columns
 def classify_data(data):
-    columns = []
-    temp = [" ", " ", " ", " "]
-    # Define regular expression patterns
     date_pattern = re.compile(r'\d{2}/\d{2}/\d{4}')
     money_pattern = re.compile(r'(?:\d{1,3}(?:,\d{3})*|\d+)?\.\d{2}')
+    columns = []
+    temp = [" ", " ", " ", " "]
+
     for item in data.split(' '):
         if date_pattern.match(item):
             if temp[0] == " ":
@@ -136,54 +85,162 @@ def classify_data(data):
         columns.append(temp)
 
     return columns
-def pdf_to_single_csv(pdf_path, csv_path):
-    print('def pdf_to_single_csv(pdf_path, csv_path):')
+
+def pdf_to_single_csv(pdfpath, savecsvfile):
     pytesseract.pytesseract.tesseract_cmd = get_the_tesseract_path()
-    delimiter="##"
-    delimiter2="|"
-    # Define a list to store extracted text
-    extracted_texts = []
-    # Process each image
-    images = convert_from_path(pdf_path)
-    unwanted_texts = [
-    'FASBUO11 FREDERICKSBURG CITY CIRCUIT COURT PAGE: 1\nRESTITUTION IN COLLECTIONS OVER 90 DAYS WITHOUT PAYMENT\nPREPARED: 06/28/24\n\nFOR COMMONWEALTH ATTORNEY\n'
-]
-    for i, image in enumerate(images):
-        image_path = os.path.join(f'page_{i}.png')
-        # Save image
-        image.save(image_path, 'PNG')
+    delimiter = "##"
+    delimiter2 = "|"
 
-        # Extract text from image
-        text = pytesseract.image_to_string(image)
-        # Remove unwanted text
-    for unwanted_text in unwanted_texts:
-        text = text.replace(unwanted_text, '')
-        extracted_texts.append(text)
+    # Convert PDF pages to images
+    pages = convert_from_path(pdfpath, 300)
 
-    # Delete the image file after processing
-    print('extracted_texts', extracted_texts)
-    os.remove(image_path)
+    # Extract text from each page
+    data_str = ""
+    for page in pages:
+        data_str += pytesseract.image_to_string(page)
+    data_str = re.sub(r'\n', delimiter, data_str)
+
+    # Define regex patterns for each section
+    patterns = {
+        "case_to_account_of": r'##CASE##(.*?)##ACCOUNT OF##',
+        "account_of_to_collection_date": r'##ACCOUNT OF##(.*?)##FREDERICKSBURG CITY CIRCUIT COURT##',
+        "pay_date_to_restitution_balance": r'##DATE BALANCE INTEREST DT(.*?)##REST INTEREST##',
+        "collection_balance_to_page": r'##BALANCE##(.*?)##PAGE:##',
+    }
+
+    # Extract data based on the patterns
+    sections = {}
+    for key, pattern in patterns.items():
+        sections[key] = re.findall(pattern, data_str)
+
+    # Ensure all sections have the same length
+    max_length = max(len(section) for section in sections.values())
+    for key in sections:
+        while len(sections[key]) < max_length:
+            sections[key].append('')
+
+    # List to hold the grouped elements
+    grouped_data = [''] * 3000  # Initialize grouped_data with empty strings
+    for i in range(max_length):
+        for key in sections:
+            data = sections[key][i]
+            data_array = data.split(delimiter)
+            x = 0
+            for index, item in enumerate(data_array):
+                if item:  # Check if the item is not empty
+                    if key == "pay_date_to_restitution_balance":
+                        for row in classify_data(item):
+                            row_combined = " | ".join(row)
+                            item = row_combined
+                    grouped_data[x] += f'{item}{delimiter2}'
+                    x += 1
+
+    # Remove empty strings from grouped_data
+    grouped_data = [data for data in grouped_data if data]
+
+    # Split each data item by "|" and create a list of lists
+    data_list = [data.split("|") for data in grouped_data]
+
+    # Ensure each row has exactly 7 columns
+    for row in data_list:
+        while len(row) > 7:
+            row[-2] += row.pop(-1)  # Combine extra columns
+        while len(row) < 7:
+            row.append("")  # Add empty columns if less than 7
+
+    # Define column names
+    columns = ["CASE", "ACCOUNT OF", "COLLECTION DATE", "PAY DATE", "RESTITUTION BALANCE", "RESTITUTION INTEREST DT", "REST INTEREST BALANCE"]
+
+    # Create a DataFrame
+    df = pd.DataFrame(data_list, columns=columns)
     
 
+    # Select columns of interest
+    columns_of_interest = ["CASE", "ACCOUNT OF", "RESTITUTION BALANCE", "PAY DATE"]
+    filtered_df = df[columns_of_interest].copy()
 
-if __name__ == "__main__":
-    if not os.path.exists(DOWNLOAD_FOLDER):
-        os.makedirs(DOWNLOAD_FOLDER)
-    if not os.path.exists(REPORT_FOLDER):
-        os.makedirs(REPORT_FOLDER)
-    driver = initialize_driver(DOWNLOAD_FOLDER)
-    driver.get(APP_URL)
-    download_file_path = download_pdf(
-        driver,
-        '//*[@id="divEditorf07f49c4-e833-4363-b38a-c2847c5c0205"]/div/ul[10]/li[8]/a',
-        EXPECTED_OUTPUT_FILE,
-    )
-    print("Download file path:", download_file_path)
-    output_csv_path = os.path.join( REPORT_FOLDER, f'{FILE_NAME}_{CURRENT_DATE.strftime("%Y_%B_%d")}.{FILE_TYPE}')
-    print('output_csv_path', output_csv_path)
-    pdf_to_single_csv(download_file_path, output_csv_path)
-   
-    # 
-    # delete_path(download_file_path)
-    # delete_folder(DOWNLOAD_FOLDER)
-    driver.quit()
+    # Rename columns
+    column_mapping = {
+        "CASE": "Case Number",
+        "ACCOUNT OF": "Prior Owner",
+        "RESTITUTION BALANCE": "Surplus amount",
+        "PAY DATE": "Sale Date"
+    }
+    filtered_df.rename(columns=column_mapping, inplace=True)
+
+    # Add required columns
+    required_columns = ["Property Address", "Parcel ID", "Opening Bid", "Sale Price", "Applicant/Purchaser"]
+    for col in required_columns:
+        filtered_df.loc[:, col] = 'Nill'
+
+    # Reorder columns
+    final_columns = [
+        "Property Address",
+        "Prior Owner",
+        "Parcel ID",
+        "Opening Bid",
+        "Sale Price",
+        "Surplus amount",
+        "Sale Date",
+        "Case Number",
+        "Applicant/Purchaser"
+    ]
+    for col in final_columns:
+        if col not in filtered_df.columns:
+            filtered_df.loc[:, col] = "Nill"
+
+    filtered_df = filtered_df[final_columns]
+
+    # Write the DataFrame to a CSV file
+    with open(savecsvfile, 'w') as f:
+        filtered_df.to_csv(f, index=False)
+    print(f"Data extraction complete and CSV file created. {savecsvfile}")
+    return savecsvfile
+
+def check_file_downloaded(download_dir, filename):
+    files = os.listdir(download_dir)
+    if filename in files:
+        print(f"File '{filename}' successfully downloaded.")
+        return True 
+    else:
+        print(f"File '{filename}' not found in the download directory.")
+        return False
+
+def scrapping_the_data(driver_instance):
+    print('Scrapping_the_data')
+    """Download the PDF file from the specified URL."""
+    if check_file_downloaded(DOWNLOAD_FOLDER, EXPECTED_OUTPUT_FILE):
+        download_pdf =  os.path.join(DOWNLOAD_FOLDER, EXPECTED_OUTPUT_FILE)
+    else:
+        print(f'Opening the URL {APP_URL}')
+        driver_instance.get(APP_URL)
+        time.sleep(5)
+        xpath = '//*[@id="divEditorf07f49c4-e833-4363-b38a-c2847c5c0205"]/div/ul[10]/li[8]/a'
+        actions = ActionChains(driver_instance)
+        # Locate the download element
+        download_element = driver_instance.find_element(By.XPATH, xpath)
+        actions.move_to_element(download_element).perform()
+        download_element.click()
+        print('Download element clicked successfully')
+        time.sleep(10)
+        download_pdf = os.path.join(DOWNLOAD_FOLDER, EXPECTED_OUTPUT_FILE)
+    return True, download_pdf
+
+if not os.path.exists(DOWNLOAD_FOLDER):
+    os.makedirs(DOWNLOAD_FOLDER)
+if not os.path.exists(REPORT_FOLDER):
+    os.makedirs(REPORT_FOLDER)
+
+driver = initialize_driver(DOWNLOAD_FOLDER)
+status, download_file = scrapping_the_data(driver)
+print('download_file', download_file)
+driver.quit()
+
+if status:
+    output_csv_path = os.path.join(REPORT_FOLDER, f'{FILE_NAME}_{CURRENT_DATE.strftime("%Y_%B_%d")}.{FILE_TYPE}')
+    print('output_csv_path' , output_csv_path)
+    pdf_to_single_csv(download_file, output_csv_path)
+    delete_path(download_file)
+    delete_folder(DOWNLOAD_FOLDER)
+else:
+    print('Ubanle to Scrapp ')
