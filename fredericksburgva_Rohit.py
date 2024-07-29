@@ -40,7 +40,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 from pdf2image import convert_from_path
 
 # Local application imports
-from Common import get_the_tesseract_path
+from Common import checkead_and_read, get_poppler_path, get_the_tesseract_path
 # Application Settings
 REPORT_FOLDER = os.path.join(os.getcwd(), "output")
 DOWNLOAD_FOLDER = os.path.join(os.getcwd(), "downloads")
@@ -53,10 +53,10 @@ monitor = get_monitors()[0]
 WIDTH = monitor.width
 HEIGHT = monitor.height
 # Path to Tesseract executable
-pytesseract.pytesseract.tesseract_cmd = fr'{get_the_tesseract_path()}'
-
+get_the_tesseract_path()
 # Path to the PDF file
-pdf_path = fr'{ os.path.join(DOWNLOAD_FOLDER, '_BU11_7-pages-1.pdf')}'
+pdf_path = checkead_and_read(os.path.join(DOWNLOAD_FOLDER, '_BU11_7-pages-1.pdf'))
+
 delimiter="##"
 delimiter2="|"
 
@@ -93,8 +93,9 @@ def classify_data(data):
 
 
 # Convert PDF pages to images
-pages = convert_from_path(pdf_path, 300)
-
+poppler_path = checkead_and_read(get_poppler_path())
+print('poppler_path', poppler_path)
+pages = convert_from_path(pdf_path, poppler_path=poppler_path)
 # Extract text from each page
 data_str = ""
 for page in pages:
