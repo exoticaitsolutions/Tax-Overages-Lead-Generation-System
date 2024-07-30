@@ -4,6 +4,7 @@ import time
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt, pyqtSignal, QObject
+from threading import Thread
 
 from config import (
     APP_NAME,
@@ -15,7 +16,6 @@ from config import (
     START_TIME,
     THREAD_EVENT,
 )
-from threading import Thread
 from utils import (
     center_window,
     get_function,
@@ -76,7 +76,6 @@ QTextEdit {
 }
 """
 
-
 class Worker(QObject):
     scrapping_finish = pyqtSignal(bool, str, str)
 
@@ -93,24 +92,34 @@ class Worker(QObject):
         output_text,
         scrape_thread_event,
     ):
-        # asyncio.set_event_loop(loop)
-        print("custom_function_name", custom_function_name)
-        scrapping_function = get_function(custom_function_name)
-        if scrapping_function:
-            global csv_data
-            status, scrapping_status, file_name, csv_data = scrapping_function(
-                driver_instance, country_name, country_url, output_text
-            )
-            self.scrapping_finish.emit(status, scrapping_status, file_name)
-        else:
-            print(f"Function {custom_function_name} not found.")
-            self.scrapping_finish.emit(False, "Function not found", "")
-        scrape_thread_event.set()
-
+        try:
+            # asyncio.set_event_loop(loop)
+            print("custom_function_name", custom_function_name)
+            scrapping_function = get_function(custom_function_name)
+            if scrapping_function:
+                global csv_data
+                status, scrapping_status, file_name, csv_data = scrapping_function(
+                    driver_instance, country_name, country_url, output_text
+                )
+                self.scrapping_finish.emit(status, scrapping_status, file_name)
+            else:
+                print(f"Function {custom_function_name} not found.")
+                self.scrapping_finish.emit(False, "Function not found", "")
+        except Exception as e:
+            # Handle any exceptions that may occur during scraping
+            print(f"An error occurred: {str(e)}")
+            self.scrapping_finish.emit(False, str(e), "")
+        finally:
+            scrape_thread_event.set()
+            try:
+                driver_instance.quit()
+            except Exception as e:
+                print(f"Failed to quit driver: {str(e)}")
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.driver = None  # Initialize driver variable
         self.initUI()
 
     def initUI(self):
@@ -203,15 +212,19 @@ class MainWindow(QMainWindow):
         else:
             name = self.country_combo_box.currentText()
             url, function_name = self.country_combo_box.itemData(index)
-            global driver
-            driver = initialize_driver(NEW_EVENT_LOOP)
+            if self.driver:
+                try:
+                    self.driver.quit()
+                except Exception as e:
+                    print(f"Failed to quit previous driver: {str(e)}")
+            self.driver = initialize_driver(NEW_EVENT_LOOP)
             self.worker = Worker()
             self.worker.scrapping_finish.connect(self.on_scrapping_finished)
             scrape_thread = Thread(
                 target=self.worker.run_the_scrapping_thread,
                 args=(
                     NEW_EVENT_LOOP,
-                    driver,
+                    self.driver,
                     name,
                     url,
                     function_name,
@@ -240,15 +253,15 @@ class MainWindow(QMainWindow):
                 show_message_box(
                     self,
                     QMessageBox.NoIcon,
-                    "success",
+                    "Success",
                     f"Data saved successfully to {output_csv_path}",
                 )
             else:
                 show_message_box(
                     self,
                     QMessageBox.Warning,
-                    "error",
-                    "data successfully found successfully but failed to the saved the data",
+                    "Error",
+                    "Data successfully found but failed to save.",
                 )
         else:
             show_message_box(
@@ -257,13 +270,12 @@ class MainWindow(QMainWindow):
                 "Browser Error",
                 scrapping_status,
             )
-        driver.quit()
         self.scrapping_button.setEnabled(True)
         end_time = time.time()
         total_time = end_time - START_TIME
         print_the_output_statement(
             self.output_text,
-            f"Total execution time for Scrapping : {total_time:.2f} seconds",
+            f"Total execution time for Scraping: {total_time:.2f} seconds",
         )
 
     @staticmethod
@@ -284,10 +296,12 @@ class MainWindow(QMainWindow):
             QMessageBox.No,
         )
         if reply == QMessageBox.Yes:
+            if self.driver:
+                try:
+                    self.driver.quit()
+                except Exception as e:
+                    print(f"Failed to quit driver: {str(e)}")
             self.close()
-            if "driver" in locals():
-                driver.quit()
-
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
