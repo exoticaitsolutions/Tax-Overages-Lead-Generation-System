@@ -200,7 +200,7 @@ class MainWindow(QMainWindow):
 
     def multiple_site_scrapping(self):
         index = self.country_combo_box.currentIndex()
-        self.scrapping_button.setEnabled(False)
+        self.scrapping_button.setEnabled(True)
         if index == 0:
             show_message_box(
                 self,
