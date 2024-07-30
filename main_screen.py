@@ -2,13 +2,11 @@ import os
 import sys
 import time
 from PyQt5.QtWidgets import *
-import asyncio
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt, pyqtSignal, QObject
 
 from config import APP_NAME, APP_TITLE, CURRENT_DATE, FILE_TYPE, JSON_FILE_NAME, NEW_EVENT_LOOP, START_TIME, THREAD_EVENT
 from threading import Thread
-from multiple_scrapping import scrap_sumterclerk_county
 from utils import center_window, get_function, print_the_output_statement, read_json_from_file, save_to_csv, show_message_box
 from web_driver import initialize_driver
 

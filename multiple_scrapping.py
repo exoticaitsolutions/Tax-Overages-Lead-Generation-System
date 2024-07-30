@@ -8,7 +8,6 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException, StaleElementReferenceException, WebDriverException
-
 from config import DOWNLOAD_FOLDER
 from utils import check_file_downloaded, delete_folder, delete_path, print_the_output_statement
 
