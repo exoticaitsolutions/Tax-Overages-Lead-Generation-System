@@ -227,6 +227,7 @@ class MainWindow(QMainWindow):
                 scrapping_status,
             )
         driver.quit()
+        self.scrapping_button.setEnabled(True)
         end_time = time.time()
         total_time = end_time - START_TIME
         print_the_output_statement(
