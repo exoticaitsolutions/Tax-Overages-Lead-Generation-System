@@ -5,9 +5,25 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt, pyqtSignal, QObject
 
-from config import APP_NAME, APP_TITLE, CURRENT_DATE, FILE_TYPE, JSON_FILE_NAME, NEW_EVENT_LOOP, START_TIME, THREAD_EVENT
+from config import (
+    APP_NAME,
+    APP_TITLE,
+    CURRENT_DATE,
+    FILE_TYPE,
+    JSON_FILE_NAME,
+    NEW_EVENT_LOOP,
+    START_TIME,
+    THREAD_EVENT,
+)
 from threading import Thread
-from utils import center_window, get_function, print_the_output_statement, read_json_from_file, save_to_csv, show_message_box
+from utils import (
+    center_window,
+    get_function,
+    print_the_output_statement,
+    read_json_from_file,
+    save_to_csv,
+    show_message_box,
+)
 from web_driver import initialize_driver
 
 bootstrap_style = """
@@ -67,14 +83,24 @@ class Worker(QObject):
     def __init__(self):
         super().__init__()
 
-    def run_the_scrapping_thread(self, loop, driver_instance, country_name, country_url,custom_function_name , output_text,
-                                 scrape_thread_event):
+    def run_the_scrapping_thread(
+        self,
+        loop,
+        driver_instance,
+        country_name,
+        country_url,
+        custom_function_name,
+        output_text,
+        scrape_thread_event,
+    ):
         # asyncio.set_event_loop(loop)
-        print('custom_function_name', custom_function_name)
+        print("custom_function_name", custom_function_name)
         scrapping_function = get_function(custom_function_name)
         if scrapping_function:
             global csv_data
-            status, scrapping_status, file_name, csv_data = scrapping_function(driver_instance, country_name, country_url, output_text)
+            status, scrapping_status, file_name, csv_data = scrapping_function(
+                driver_instance, country_name, country_url, output_text
+            )
             self.scrapping_finish.emit(status, scrapping_status, file_name)
         else:
             print(f"Function {custom_function_name} not found.")
@@ -125,7 +151,9 @@ class MainWindow(QMainWindow):
         self.country_combo_box.setFont(font)
         self.country_combo_box.setStyleSheet("height: 30px;")
         form_layout.addWidget(self.country_combo_box)
-        form_layout.addWidget(QLabel("<i>Please choose a country from the dropdown menu.</i>"))
+        form_layout.addWidget(
+            QLabel("<i>Please choose a country from the dropdown menu.</i>")
+        )
         button_layout = QHBoxLayout()
         form_layout.addLayout(button_layout)
 
@@ -201,7 +229,10 @@ class MainWindow(QMainWindow):
                 self, "Select Directory", options=options
             )
             if folder_path:
-                output_csv_path = os.path.join(folder_path, f'{file_name}_{CURRENT_DATE.strftime("%Y_%B_%d")}.{FILE_TYPE}' )
+                output_csv_path = os.path.join(
+                    folder_path,
+                    f'{file_name}_{CURRENT_DATE.strftime("%Y_%B_%d")}.{FILE_TYPE}',
+                )
                 save_to_csv(csv_data, output_csv_path)
                 print_the_output_statement(
                     self.output_text, f"Data saved successfully to {output_csv_path}"
@@ -237,14 +268,14 @@ class MainWindow(QMainWindow):
 
     @staticmethod
     def upload_excel():
-        print('def upload_excel(self):')
+        print("def upload_excel(self):")
 
     @staticmethod
     def intergate_with_crm_function():
-        print('def intergate_with_crm_function(self):')
+        print("def intergate_with_crm_function(self):")
 
     def closed_window(self):
-        print('def closed_window(self):')
+        print("def closed_window(self):")
         reply = QMessageBox.question(
             self,
             "Message",

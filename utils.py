@@ -1,4 +1,3 @@
-
 import json
 import os
 import importlib
@@ -8,15 +7,17 @@ from PyQt5.QtWidgets import QDesktopWidget
 from PyQt5.QtWidgets import QMessageBox
 from PyQt5.QtGui import QTextCursor
 
+
 def center_window(window):
     qr = window.frameGeometry()
     cp = QDesktopWidget().availableGeometry().center()
     qr.moveCenter(cp)
     window.move(qr.topLeft())
 
+
 def read_json_from_file(filename):
     try:
-        with open(filename, 'r') as file:
+        with open(filename, "r") as file:
             # Load JSON data from the file
             data = json.load(file)
             return data
@@ -63,14 +64,14 @@ def check_file_downloaded(download_dir, filename):
 
 def save_to_csv(df, csv_path):
     """Save the DataFrame to a CSV file."""
-    df.to_csv(csv_path, index=False, encoding='utf-8')
+    df.to_csv(csv_path, index=False, encoding="utf-8")
     print(f"Filtered and cleaned data saved to {csv_path}")
 
 
-def get_function(function_name, module_name='multiple_scrapping'):
+def get_function(function_name, module_name="multiple_scrapping"):
     """
     Retrieve a function from a module given its name.
-    
+
     :param function_name: The name of the function to retrieve.
     :param module_name: The name of the module where the function is defined.
     :return: The function object or None if not found.
@@ -85,23 +86,23 @@ def get_function(function_name, module_name='multiple_scrapping'):
     except AttributeError:
         print(f"Function {function_name} not found in module {module_name}.")
         return None
-    
+
 
 def delete_folder(folder_path):
-        """
-        Delete a folder and all its contents.
+    """
+    Delete a folder and all its contents.
 
-        Parameters:
-        - folder_path (str): The path to the folder to be deleted.
-        """
-        try:
-            if os.path.isdir(folder_path):
-                shutil.rmtree(folder_path)
-                print(f"Directory '{folder_path}' and all its contents have been deleted.")
-            else:
-                print(f"Directory '{folder_path}' does not exist or is not a directory.")
-        except Exception as e:
-            print(f"An error occurred while deleting the folder: {e}")
+    Parameters:
+    - folder_path (str): The path to the folder to be deleted.
+    """
+    try:
+        if os.path.isdir(folder_path):
+            shutil.rmtree(folder_path)
+            print(f"Directory '{folder_path}' and all its contents have been deleted.")
+        else:
+            print(f"Directory '{folder_path}' does not exist or is not a directory.")
+    except Exception as e:
+        print(f"An error occurred while deleting the folder: {e}")
 
 
 def delete_path(path):

@@ -6,7 +6,7 @@ from screeninfo import get_monitors
 
 APP_TITLE = "Surplus Funds/Tax Overages Lead Generation System"
 APP_NAME = APP_TITLE
-JSON_FILE_NAME = 'websites.json'
+JSON_FILE_NAME = "websites.json"
 REPORT_FOLDER = os.path.join(os.getcwd(), "output")
 DOWNLOAD_FOLDER = os.path.join(os.getcwd(), "downloads")
 FILE_TYPE = "csv"

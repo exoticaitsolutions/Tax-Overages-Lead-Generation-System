@@ -6,7 +6,7 @@ from config import *
 
 
 def initialize_driver(loop):
-    print('initialize_driver')
+    print("initialize_driver")
     chrome_options = Options()
     asyncio.set_event_loop(loop)
     window_size = f"{WIDTH},{HEIGHT}"
@@ -32,4 +32,4 @@ def initialize_driver(loop):
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--disable-software-rasterizer")
     # service = Service(chromedriver_path)
-    return webdriver.Chrome(service='', options=chrome_options)
+    return webdriver.Chrome(service="", options=chrome_options)
