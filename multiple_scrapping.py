@@ -28,7 +28,7 @@ def scrap_courts_delaware_gov_county(driver_instance, country_name, country_url,
 
         # Extract table rows
         rows = []
-        for i in range(ord('a'), ord('z') + 1):
+        for i in range(ord('a'), ord('c') + 1):
             dropdown = driver_instance.find_element(By.XPATH, '//*[@id="main_content"]/select')
             dropdown.send_keys(chr(i))
             time.sleep(3)
@@ -36,15 +36,15 @@ def scrap_courts_delaware_gov_county(driver_instance, country_name, country_url,
             table = driver_instance.find_element(By.CLASS_NAME, 'table')
             for row in table.find_elements(By.XPATH, './/tbody//tr'):
                 cells = [cell.text for cell in row.find_elements(By.XPATH, './/td')]
+                cells = [data for data in cells if not (len(data) == 1 and data.isalpha())]
                 rows.append(cells)
 
         # Save scraped data to CSV
         csv_file = 'table_data.csv'
         with open(csv_file, 'w', newline='', encoding='utf-8') as file:
             writer = csv.writer(file)
-            writer.writerow(headers)  # Write the header row
-            writer.writerows(rows)    # Write the data rows
-
+            writer.writerow(headers) 
+            writer.writerows(rows)  
         # Define columns of interest and mapping rules
         columns_of_interest = [
             "Last Name", "First Name", "Address", "Court Held Amount",
@@ -59,19 +59,21 @@ def scrap_courts_delaware_gov_county(driver_instance, country_name, country_url,
             "Sale Date": "Sale Date",
             "Case Number":"Case Number"
         }
+
         # Load the CSV file and clean the data
         df = pd.read_csv(csv_file)
         df_cleaned = df.drop_duplicates()
 
         # Create a new DataFrame with columns of interest
         new_df = pd.DataFrame(columns=columns_of_interest)
+
         # Map and extract relevant data
         for column in columns_of_interest:
             original_column_name = mapping.get(column, column)
             # if original_column_name in df_cleaned.columns:
             new_df[column] = df_cleaned[original_column_name]
-        # Fill missing values and remove duplicates
         new_df = new_df.drop_duplicates()
+        
         delete_path(csv_file)
         return True, "Scraping completed successfully", 'courts_delaware', new_df
     except NoSuchElementException as e:
