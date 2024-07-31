@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt, pyqtSignal, QObject
 
-from config import APP_NAME, APP_TITLE, CURRENT_DATE, FILE_TYPE, JSON_FILE_NAME, NEW_EVENT_LOOP, START_TIME, THREAD_EVENT
+from config import APP_NAME, APP_TITLE, CURRENT_DATE, DOWNLOAD_FOLDER, FILE_TYPE, JSON_FILE_NAME, NEW_EVENT_LOOP, START_TIME, THREAD_EVENT
 from threading import Thread
 from utils import center_window, get_function, print_the_output_statement, read_json_from_file, save_to_csv, show_message_box
 from web_driver import initialize_driver

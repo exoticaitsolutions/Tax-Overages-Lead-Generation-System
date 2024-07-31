@@ -13,6 +13,10 @@
         "name": "Polk County Florida",
         "url": "https://www.polkcountyclerk.net/280/Surplus-Funds-List",
         "function_name": "scrap_polkcountyclerk_net_county"
+      },{
+        "name": "Shasta County California",
+        "url": "https://www.shastacounty.gov/tax-collector/page/excess-proceeds",
+        "function_name": "scrap_shasta_california_county"
       }
       
     ]
