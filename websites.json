@@ -17,6 +17,10 @@
         "name": "Shasta County California",
         "url": "https://www.shastacounty.gov/tax-collector/page/excess-proceeds",
         "function_name": "scrap_shasta_california_county"
+      },{
+        "name": "Sarasota County Florida",
+        "url": "https://sarasota.realtdm.com/public/cases/list",
+        "function_name": "scrap_sarasota_county_florida"
       }
       
     ]

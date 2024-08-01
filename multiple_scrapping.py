@@ -20,6 +20,7 @@ from utils import (
     check_file_downloaded,
     delete_folder,
     delete_path,
+    format_location,
     print_the_output_statement,
 )
 
@@ -413,3 +414,262 @@ def scrap_shasta_california_county(
             "",
             "",
         )
+
+
+
+def extract_single_row_data(driver):
+    headers_data =[]
+    try:
+        # Extract data from the first row only
+        table = driver.find_element(By.ID, 'county-setup')
+
+        rows = table.find_elements(By.TAG_NAME, 'tr')
+        for row in rows:
+            cols = row.find_elements(By.TAG_NAME, 'td')
+            col_data = [col.text for col in cols]
+            headers_data.append(col_data)
+        headers_data_in_csv = headers_data[0]
+        print('headers_data_in_csv : ', headers_data_in_csv)
+
+        if not rows:
+            print("No rows found.")
+            return [], []
+
+        # Extract the header and the first row
+        header_row = rows[0]
+        header_cols = header_row.find_elements(By.TAG_NAME, 'th')
+        headers = [header.text for header in header_cols]
+
+        # Extract the first data row
+        row = rows[1]  # Assuming the first data row is at index 1
+        cols = row.find_elements(By.TAG_NAME, 'td')
+        col_data = [col.text for col in cols]
+        print("col_data : ", col_data)
+
+        # Click the row to go to the detail page
+        row.click()
+        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'button.btn.btn-back-to-case-list')))
+
+        # Extract data from the detail page
+        property_address = driver.find_element(By.XPATH, '//*[@id="summarySummary"]/table/tbody/tr[4]/td[2]').text
+
+        # Click "Parties" link
+        parties_link = driver.find_element(By.XPATH, '//a[@data-handler="dspCaseParties"]')
+        parties_link.click()
+        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, 'table-public')))
+
+        # Extract parties table data
+        parties_table = driver.find_element(By.CLASS_NAME, 'table-public')
+        thead = parties_table.find_element(By.TAG_NAME, 'thead')
+        parties_headers = thead.find_elements(By.TAG_NAME, 'th')
+        parties_header_texts = [header.text for header in parties_headers]
+
+        parties_rows = parties_table.find_elements(By.TAG_NAME, 'tr')
+        parties_data = []
+        for parties_row in parties_rows[1:]:  # Skip header row
+            parties_cols = parties_row.find_elements(By.TAG_NAME, 'td')
+            parties_data.append([col.text for col in parties_cols])
+
+        # Click "Disbursements" link
+        disbursements_link = driver.find_element(By.XPATH, '//a[@data-handler="dspDisbursements"]')
+        disbursements_link.click()
+        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="publicSection"]/div[2]/table[2]/tbody/tr/td[4]/strong')))
+
+        # Extract surplus amount
+        surplus_amount_element = driver.find_element(By.XPATH, '//*[@id="publicSection"]/div[2]/table[2]/tbody/tr/td[4]/strong')
+        surplus_amount = surplus_amount_element.text
+        print("surplus_amount : ", surplus_amount)
+
+        return headers, property_address, parties_header_texts, parties_data, surplus_amount
+
+    except Exception as e:
+        print(f"Error processing row: {e}")
+        return [], [], [], []
+
+def scrap_sarasota_county_florida(
+    driver, country_name, country_url, output_text
+):
+    # formatted_location = country_name.replace(" ", "_").lower()
+    formattedlocation = format_location(country_name)
+    print('formatted_location', formattedlocation)
+    try:
+        print_the_output_statement(output_text, f"Opening the site {country_url}")
+        driver.get(country_url)
+        time.sleep(5)
+        print_the_output_statement(
+            output_text,
+            f"Scraping started for {country_name}. Please wait a few minutes.",
+        )
+        # Perform the initial filtering and navigation
+        button = driver.find_element(By.ID, 'filterButtonStatus')
+        button.click()
+        time.sleep(2)
+        element_to_hover_over = driver.find_element(By.ID, 'caseStatus2')
+        actions = ActionChains(driver)
+        actions.move_to_element(element_to_hover_over).perform()
+
+        element_to_click = driver.find_element(By.XPATH, '//a[@data-statusid="1011" and @data-parentid="2"]')
+        element_to_click.click()
+
+        button = driver.find_element(By.ID, 'filterButtonStatus')
+        button.click()
+
+        button_to_click = driver.find_element(By.XPATH, '//button[@class="btn btn-default dropdown-toggle" and @data-id="filterBalanceType"]')
+        button_to_click.click()
+        time.sleep(2)
+
+        starplus_element = driver.find_element(By.XPATH, '/html/body/div[8]/div/ul/li[2]/a/span')
+        starplus_element.click()
+        time.sleep(3)
+
+        search_button = driver.find_element(By.XPATH, '//button[@class="btn btn-success filters-submit"]')
+        search_button.click()
+        time.sleep(10)
+
+        headers_data = []
+
+        def extract_single_row_data(driver):
+            try:
+                # Extract data from the first row only
+                table = driver.find_element(By.ID, 'county-setup')
+
+                rows = table.find_elements(By.TAG_NAME, 'tr')
+                for row in rows:
+                    cols = row.find_elements(By.TAG_NAME, 'td')
+                    col_data = [col.text for col in cols]
+                    headers_data.append(col_data)
+                headers_data_in_csv = headers_data[0]
+                print('headers_data_in_csv : ', headers_data_in_csv)
+
+                if not rows:
+                    print("No rows found.")
+                    return [], []
+
+                # Extract the header and the first row
+                header_row = rows[0]
+                header_cols = header_row.find_elements(By.TAG_NAME, 'th')
+                headers = [header.text for header in header_cols]
+
+                # Extract the first data row
+                row = rows[1]  # Assuming the first data row is at index 1
+                cols = row.find_elements(By.TAG_NAME, 'td')
+                col_data = [col.text for col in cols]
+                print("col_data : ", col_data)
+
+                # Click the row to go to the detail page
+                row.click()
+                WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'button.btn.btn-back-to-case-list')))
+
+                # Extract data from the detail page
+                property_address = driver.find_element(By.XPATH, '//*[@id="summarySummary"]/table/tbody/tr[4]/td[2]').text
+
+                # Click "Parties" link
+                parties_link = driver.find_element(By.XPATH, '//a[@data-handler="dspCaseParties"]')
+                parties_link.click()
+                WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, 'table-public')))
+
+                # Extract parties table data
+                parties_table = driver.find_element(By.CLASS_NAME, 'table-public')
+                thead = parties_table.find_element(By.TAG_NAME, 'thead')
+                parties_headers = thead.find_elements(By.TAG_NAME, 'th')
+                parties_header_texts = [header.text for header in parties_headers]
+
+                parties_rows = parties_table.find_elements(By.TAG_NAME, 'tr')
+                parties_data = []
+                for parties_row in parties_rows[1:]:  # Skip header row
+                    parties_cols = parties_row.find_elements(By.TAG_NAME, 'td')
+                    parties_data.append([col.text for col in parties_cols])
+
+                # Click "Disbursements" link
+                disbursements_link = driver.find_element(By.XPATH, '//a[@data-handler="dspDisbursements"]')
+                disbursements_link.click()
+                WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="publicSection"]/div[2]/table[2]/tbody/tr/td[4]/strong')))
+
+                # Extract surplus amount
+                surplus_amount_element = driver.find_element(By.XPATH, '//*[@id="publicSection"]/div[2]/table[2]/tbody/tr/td[4]/strong')
+                surplus_amount = surplus_amount_element.text
+                print("surplus_amount : ", surplus_amount)
+
+                return headers, property_address, parties_header_texts, parties_data, surplus_amount
+
+            except Exception as e:
+                print(f"Error processing row: {e}")
+                return [], [], [], []
+
+        # Extract data from one row and exit
+        headers, property_address, parties_header_texts, parties_data, surplus_amount = extract_single_row_data(driver)
+
+        # Save headers and column data to first_csv.csv
+        headers_data_in_csv = headers_data[0] if headers_data else []
+        col_data = headers_data[1] if len(headers_data) > 1 else []
+
+        df_first_csv = pd.DataFrame([col_data], columns=headers_data_in_csv)
+        df_first_csv.to_csv('first_csv.csv', index=False)
+
+        # Format the data as required
+        formatted_data = []
+        if property_address and parties_data:
+            for party_row in parties_data:
+                formatted_row = [property_address] + party_row
+                formatted_data.append(formatted_row)
+
+        # Include the header row for the main table data
+        main_table_data = [headers] + [formatted_data[0] if formatted_data else []]
+
+        # Convert the consolidated data into a DataFrame with appropriate headers
+        df = pd.DataFrame(formatted_data, columns=[
+            'Property Address', 'Name', 'Party Type', 'Street Address', 'City', 'State', 'Zip', 'Country'
+        ])
+        df['Surplus Amount'] = surplus_amount
+
+        # Save the DataFrame to a CSV file
+        df.to_csv('single_row_data_formatted.csv', index=False)
+
+        # Merge both CSV files
+        df_first = pd.read_csv('first_csv.csv')
+        df_formatted = pd.read_csv('single_row_data_formatted.csv')
+
+        # Concatenate them vertically
+        merged_df = pd.concat([df_first, df_formatted], ignore_index=True)
+
+        # Save the merged DataFrame to a new CSV file
+        merged_df.to_csv('merged_data.csv', index=False)
+        # Read the merged data CSV
+        df_merged = pd.read_csv('merged_data.csv')
+
+        # Ensure that all address columns are converted to strings
+        df_merged['Street Address'] = df_merged['Street Address'].astype(str)
+        df_merged['City'] = df_merged['City'].astype(str)
+        df_merged['State'] = df_merged['State'].astype(str)
+        df_merged['Zip'] = df_merged['Zip'].astype(str)
+
+        # Create the new DataFrame with the required columns and headers
+        df_final = pd.DataFrame()
+
+        df_final['Property Owner Name'] = df_merged['Name']
+        df_final['Property Owner Address'] = df_merged['Street Address'] + ', ' + df_merged['City'] + ', ' + df_merged['State'] + ', ' + df_merged['Zip']
+        df_final['Property Address'] = df_merged['Property Address']
+        df_final['Sale Date'] = df_merged['Sale Date']
+        df_final['Surplus Balance'] = df_merged['Surplus Balance']
+        df_final['Parcel Number'] = df_merged['Parcel Number']
+        df_final['Case Number'] = df_merged['Case Number']
+        os.remove('first_csv.csv')
+        os.remove('merged_data.csv')
+        os.remove('single_row_data_formatted.csv')
+        df.drop_duplicates(subset='Property Address', keep='first', inplace=True)
+        # df_final.to_csv('final_csv.csv', index=False)
+        return True, "Data Scrapped Successfully", format_location(country_name),df_final
+    except (
+        NoSuchElementException,
+        StaleElementReferenceException,
+        WebDriverException,
+        ValueError,
+    ) as e:
+        error_message = "Internal Error Occurred while running application. Please Try Again!!"
+        print(error_message)
+        print_the_output_statement(output_text, error_message)
+        return False, error_message, "", ""
+    finally:
+        if "driver_instance" in locals():
+            driver.quit()
+    

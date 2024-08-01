@@ -59,6 +59,7 @@ class Worker(QObject):
     ):
         try:
             scrapping_function = get_function(custom_function_name)
+            print('scrapping_function', scrapping_function)
             if scrapping_function:
                 global csv_data
                 status, scrapping_status, file_name, csv_data = scrapping_function(

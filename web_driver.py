@@ -1,7 +1,5 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
-
 from config import *
 
 
@@ -11,8 +9,6 @@ def initialize_driver(loop):
     asyncio.set_event_loop(loop)
     window_size = f"{WIDTH},{HEIGHT}"
     print(f"Window Size: {window_size}")
-    chromedriver_path = ChromeDriverManager().install()
-    print("chromedriver_path", chromedriver_path)
     if HEADLESS:
         chrome_options.add_argument("--headless")
     chrome_options.add_argument(f"--window-size={window_size}")

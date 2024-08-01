@@ -179,3 +179,8 @@ def modification_the_json(json_data_str):
     
     # Return both the modified JSON string and its length
     return json.loads(json.dumps(modified_data, indent=4)), data_length
+
+
+def format_location(country_name):
+    formatted_location = country_name.replace(" ", "_").lower()
+    return formatted_location

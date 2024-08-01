@@ -23,7 +23,7 @@ WIDTH, HEIGHT = monitor.width, monitor.height
 THREAD_EVENT = asyncio.Event()
 NEW_EVENT_LOOP = asyncio.new_event_loop()
 START_TIME = time.time()
-HEADLESS = True
+HEADLESS = False
 # Determine API type
 api_type = os.getenv("API_TYPE")
 API_BASE_URL = os.getenv("API_BASE_URL")
