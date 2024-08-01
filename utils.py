@@ -2,10 +2,12 @@ import json
 import os
 import importlib
 import shutil
-
+import pandas as pd
 from PyQt5.QtWidgets import QDesktopWidget
 from PyQt5.QtWidgets import QMessageBox
 from PyQt5.QtGui import QTextCursor
+
+from config import PHONE_BURNER_USER_ID
 
 
 def center_window(window):
@@ -125,3 +127,55 @@ def delete_path(path):
             print(f"Path '{path}' does not exist or is not a file or directory.")
     except Exception as e:
         print(f"An error occurred while deleting the path: {e}")
+
+
+def xlsx_to_json(xlsx_file_path):
+    df = pd.read_excel(xlsx_file_path)
+    data_dict = df.to_dict(orient="records")
+    json_data = json.dumps(data_dict, indent=4)
+    num_records = len(df)
+    header_columns = list(df.columns)
+    return header_columns, json_data, num_records
+
+
+
+def modification_the_json(json_data_str):
+    header_mapping = {
+        "First Name": "first_name",
+        "Last Name": "last_name",
+        "Email": "email",
+        "Phone": "phone",
+        "Address Line 1": "address1",
+        "Address Line 2": "address2",
+        "City": "city",
+        "State": "state",
+        "Zip": "zip",
+        "owner_id": "owner_id"
+    }
+    
+    # Load the JSON data from the string
+    data = json.loads(json_data_str)
+    
+    # Check if data is a list
+    if not isinstance(data, list):
+        raise ValueError("JSON data must be a list of records")
+    
+    # Define the PHONE_BURNER_USER_ID (passed as argument)
+    phone_burner_user_id = str(PHONE_BURNER_USER_ID)
+    # Iterate through each record and modify it
+    modified_data = []
+    for record in data:
+        new_record = {}
+        for old_key, new_key in header_mapping.items():
+            if old_key in record:
+                new_record[new_key] = record[old_key]
+        new_record["owner_id"] = phone_burner_user_id
+        modified_data.append(new_record)
+    
+    # Convert modified data to JSON string with indentation
+    modified_json_data_str = json.dumps(modified_data, indent=4)
+    # Get the length of the modified data
+    data_length = len(modified_data)
+    
+    # Return both the modified JSON string and its length
+    return json.loads(json.dumps(modified_data, indent=4)), data_length

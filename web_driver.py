@@ -27,7 +27,7 @@ def initialize_driver(loop):
             "download.directory_upgrade": True,
             "safebrowsing_for_trusted_sources_enabled": False,
             "safebrowsing.enabled": False,
-             "plugins.always_open_pdf_externally": True  # Disable PDF viewer
+            "plugins.always_open_pdf_externally": True,  # Disable PDF viewer
         },
     )
     chrome_options.add_argument("--disable-gpu")

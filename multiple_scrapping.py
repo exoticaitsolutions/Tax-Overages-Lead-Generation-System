@@ -24,7 +24,9 @@ from utils import (
 )
 
 
-def scrap_courts_delaware_gov_county(driver_instance, country_name, country_url, output_text):
+def scrap_courts_delaware_gov_county(
+    driver_instance, country_name, country_url, output_text
+):
     print("scrap_courts_delaware_gov_county")
     print_the_output_statement(output_text, f"Opening the site {country_url}")
 
@@ -32,17 +34,23 @@ def scrap_courts_delaware_gov_county(driver_instance, country_name, country_url,
         driver_instance.get(country_url)
         print_the_output_statement(
             output_text,
-            f"Scraping started for {country_name}. Please wait a few minutes."
+            f"Scraping started for {country_name}. Please wait a few minutes.",
         )
         time.sleep(5)  # Allow time for page to fully load
 
         # Extract table headers
         table = driver_instance.find_element(By.CLASS_NAME, "table")
-        headers = [header.text for header in table.find_elements(By.XPATH, ".//thead//th")]
+        headers = [
+            header.text for header in table.find_elements(By.XPATH, ".//thead//th")
+        ]
 
         rows = []
-        for i in range(ord("a"), ord("c") + 1):  # Loop through dropdown values 'a' to 'c'
-            dropdown = driver_instance.find_element(By.XPATH, '//*[@id="main_content"]/select')
+        for i in range(
+            ord("a"), ord("c") + 1
+        ):  # Loop through dropdown values 'a' to 'c'
+            dropdown = driver_instance.find_element(
+                By.XPATH, '//*[@id="main_content"]/select'
+            )
             dropdown.send_keys(chr(i))
             time.sleep(3)  # Wait for table data to update
 
@@ -51,7 +59,9 @@ def scrap_courts_delaware_gov_county(driver_instance, country_name, country_url,
             for row in table.find_elements(By.XPATH, ".//tbody//tr"):
                 cells = [cell.text for cell in row.find_elements(By.XPATH, ".//td")]
                 # Remove single alphabetic data entries (often empty cells or headers)
-                cells = [data for data in cells if not (len(data) == 1 and data.isalpha())]
+                cells = [
+                    data for data in cells if not (len(data) == 1 and data.isalpha())
+                ]
                 rows.append(cells)
 
         # Save scraped data to CSV
@@ -98,7 +108,12 @@ def scrap_courts_delaware_gov_county(driver_instance, country_name, country_url,
         delete_path(csv_file)
         return True, "Scraping completed successfully", "courts_delaware", new_df
 
-    except (NoSuchElementException, StaleElementReferenceException, WebDriverException, ValueError) as e:
+    except (
+        NoSuchElementException,
+        StaleElementReferenceException,
+        WebDriverException,
+        ValueError,
+    ) as e:
         error_message = f"Error occurred: {e}"
         print(error_message)
         print_the_output_statement(output_text, error_message)
@@ -121,7 +136,7 @@ def scrap_sumterclerk_county(driver_instance, country_name, country_url, output_
         driver_instance.get(country_url)
         print_the_output_statement(
             output_text,
-            f"Scraping started for {country_name}. Please wait a few minutes."
+            f"Scraping started for {country_name}. Please wait a few minutes.",
         )
 
         # Check if PDF is already downloaded
@@ -129,14 +144,21 @@ def scrap_sumterclerk_county(driver_instance, country_name, country_url, output_
             # Click to download the PDF
             download_button_xpath = "/html/body/div[3]/main/div[2]/div/section/div/div/div/div/div/div[1]/ul[2]/li[2]/strong/a"
             actions = ActionChains(driver_instance)
-            download_element = driver_instance.find_element(By.XPATH, download_button_xpath)
+            download_element = driver_instance.find_element(
+                By.XPATH, download_button_xpath
+            )
             actions.move_to_element(download_element).click().perform()
             time.sleep(5)  # Wait for download to start
 
             # Wait for download to complete
             wait = WebDriverWait(driver_instance, 30)
             download_path = wait.until(
-                EC.presence_of_element_located((By.XPATH, "/html/body/div[1]/div[4]/div/div[3]/div[2]/div[2]/div[2]"))
+                EC.presence_of_element_located(
+                    (
+                        By.XPATH,
+                        "/html/body/div[1]/div[4]/div/div[3]/div[2]/div[2]/div[2]",
+                    )
+                )
             )
             actions.move_to_element(download_path).click().perform()
             time.sleep(5)
@@ -147,10 +169,30 @@ def scrap_sumterclerk_county(driver_instance, country_name, country_url, output_
                 tables = page.extract_tables()
                 for table in tables:
                     df = pd.DataFrame(table[1:], columns=table[0])
-                    df = df.apply(lambda x: x.str.replace("LIST LAST UPDATED 7/5/2024", "", regex=False) if x.dtype == "object" else x)
-                    df = df.apply(lambda x: x.str.replace("ALL FUNDS LISTED ARE STILL HELD BY CLERK", "", regex=False) if x.dtype == "object" else x)
+                    df = df.apply(
+                        lambda x: (
+                            x.str.replace("LIST LAST UPDATED 7/5/2024", "", regex=False)
+                            if x.dtype == "object"
+                            else x
+                        )
+                    )
+                    df = df.apply(
+                        lambda x: (
+                            x.str.replace(
+                                "ALL FUNDS LISTED ARE STILL HELD BY CLERK",
+                                "",
+                                regex=False,
+                            )
+                            if x.dtype == "object"
+                            else x
+                        )
+                    )
                     df = df.dropna(how="all")
-                    df = df[df.apply(lambda row: row.astype(str).str.strip().ne("").any(), axis=1)]
+                    df = df[
+                        df.apply(
+                            lambda row: row.astype(str).str.strip().ne("").any(), axis=1
+                        )
+                    ]
                     all_tables.append(df)
 
         if not all_tables:
@@ -160,7 +202,11 @@ def scrap_sumterclerk_county(driver_instance, country_name, country_url, output_
 
         # Combine all tables into one DataFrame
         combined_df = pd.concat(all_tables, ignore_index=True).dropna(how="all")
-        combined_df = combined_df[combined_df.apply(lambda row: row.astype(str).str.strip().ne("").any(), axis=1)]
+        combined_df = combined_df[
+            combined_df.apply(
+                lambda row: row.astype(str).str.strip().ne("").any(), axis=1
+            )
+        ]
         combined_df = combined_df.fillna("Nill")
 
         # Process rows to handle empty rows by filling with "Nill"
@@ -192,7 +238,9 @@ def scrap_sumterclerk_county(driver_instance, country_name, country_url, output_
             if col not in merged_df.columns:
                 merged_df[col] = "Nill"
         merged_df = merged_df[final_columns]
-        merged_df = merged_df.replace({pd.NA: "Nill", pd.NaT: "Nill"})  # Handle missing values
+        merged_df = merged_df.replace(
+            {pd.NA: "Nill", pd.NaT: "Nill"}
+        )  # Handle missing values
 
         # Clean up
         delete_path(pdf_path)
@@ -200,19 +248,41 @@ def scrap_sumterclerk_county(driver_instance, country_name, country_url, output_
 
         return True, "Data Scrapped Successfully", "sumterclerk", merged_df
 
-    except (NoSuchElementException, StaleElementReferenceException, WebDriverException) as e:
+    except (
+        NoSuchElementException,
+        StaleElementReferenceException,
+        WebDriverException,
+    ) as e:
         print(f"Error occurred: {e}")
         if "driver_instance" in locals():
             driver_instance.quit()
-        return False, "Internal Error Occurred while running application. Please Try Again!!", "", ""
-    except (pd.errors.EmptyDataError, pd.errors.ParserError, ValueError, OSError, IOError) as e:
+        return (
+            False,
+            "Internal Error Occurred while running application. Please Try Again!!",
+            "",
+            "",
+        )
+    except (
+        pd.errors.EmptyDataError,
+        pd.errors.ParserError,
+        ValueError,
+        OSError,
+        IOError,
+    ) as e:
         print(f"Error occurred: {e}")
         if "driver_instance" in locals():
             driver_instance.quit()
-        return False, "Internal Error Occurred while running application. Please Try Again!!", "", ""
+        return (
+            False,
+            "Internal Error Occurred while running application. Please Try Again!!",
+            "",
+            "",
+        )
 
 
-def scrap_polkcountyclerk_net_county(driver_instance, country_name, country_url, output_text):
+def scrap_polkcountyclerk_net_county(
+    driver_instance, country_name, country_url, output_text
+):
     print_the_output_statement(output_text, f"Opening the site {country_url}")
 
     try:
@@ -220,7 +290,7 @@ def scrap_polkcountyclerk_net_county(driver_instance, country_name, country_url,
         time.sleep(5)
         print_the_output_statement(
             output_text,
-            f"Scraping started for {country_name}. Please wait a few minutes."
+            f"Scraping started for {country_name}. Please wait a few minutes.",
         )
 
         # Locate the box containing the table
@@ -232,7 +302,9 @@ def scrap_polkcountyclerk_net_county(driver_instance, country_name, country_url,
         title = box.find_element(By.TAG_NAME, "thead")
 
         # Extract headers
-        header = [cell.text for cell in title.find_elements(By.TAG_NAME, "th") if cell.text]
+        header = [
+            cell.text for cell in title.find_elements(By.TAG_NAME, "th") if cell.text
+        ]
         print("Header extracted:", header)
 
         # Scroll to ensure all data is loaded
@@ -258,26 +330,37 @@ def scrap_polkcountyclerk_net_county(driver_instance, country_name, country_url,
             "Amount Available",
             "Property ID Number",
             "Tax Deed Number",
-            "Certificate Number"
+            "Certificate Number",
         ]
         merged_df = merged_df[final_columns]
         # Handle missing values
         merged_df = merged_df.fillna("Nill")
         return True, "Data Scrapped Successfully", "PolkCountyclerk", merged_df
-    except (NoSuchElementException, StaleElementReferenceException, WebDriverException) as e:
+    except (
+        NoSuchElementException,
+        StaleElementReferenceException,
+        WebDriverException,
+    ) as e:
         print(f"Error occurred: {e}")
         if "driver_instance" in locals():
             driver_instance.quit()
-        return False, "Internal Error Occurred while running application. Please Try Again!!", "", ""
+        return (
+            False,
+            "Internal Error Occurred while running application. Please Try Again!!",
+            "",
+            "",
+        )
 
 
-def scrap_shasta_california_county(driver_instance, country_name, country_url, output_text):
+def scrap_shasta_california_county(
+    driver_instance, country_name, country_url, output_text
+):
     os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
     print_the_output_statement(output_text, f"Opening the site {country_url}")
 
     pdf_filename = "tax_sale_results_1.pdf"
     pdf_path = os.path.join(DOWNLOAD_FOLDER, pdf_filename)
-    pdf_url = 'https://www.shastacounty.gov/sites/default/files/fileattachments/tax_collector/page/2691/tax_sale_results_1.pdf'
+    pdf_url = "https://www.shastacounty.gov/sites/default/files/fileattachments/tax_collector/page/2691/tax_sale_results_1.pdf"
 
     try:
         # Download the PDF if not already downloaded
@@ -286,30 +369,47 @@ def scrap_shasta_california_county(driver_instance, country_name, country_url, o
             time.sleep(5)  # Adjust sleep time if needed
 
         # Read and parse the PDF
-        pdf_reader = PdfReader(open(pdf_path, 'rb'))
-        pdf_text = '\n'.join(page.extract_text() for page in pdf_reader.pages)
+        pdf_reader = PdfReader(open(pdf_path, "rb"))
+        pdf_text = "\n".join(page.extract_text() for page in pdf_reader.pages)
 
         # Regex pattern to match the table rows
         pattern = re.compile(
-            r'(\w+)\s+([\d-]+)\s+(.+?)\s+(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s+(REDEEMED|WITHDRAWN|NO SALE|\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*(.*)?'
+            r"(\w+)\s+([\d-]+)\s+(.+?)\s+(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s+(REDEEMED|WITHDRAWN|NO SALE|\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*(.*)?"
         )
         data = [
             match.groups()[1:6]  # Extract groups from regex match
-            for line in pdf_text.split('\n')
+            for line in pdf_text.split("\n")
             if (match := pattern.match(line))
         ]
         # Create DataFrame
-        columns = ['Parcel Number', 'Assessee Name', 'Minimum Bid Price', 'Sale Price', 'Excess Proceeds']
+        columns = [
+            "Parcel Number",
+            "Assessee Name",
+            "Minimum Bid Price",
+            "Sale Price",
+            "Excess Proceeds",
+        ]
         merged_df = pd.DataFrame(data, columns=columns)
         # Clean up
         delete_path(pdf_path)
         delete_folder(DOWNLOAD_FOLDER)
         return True, "Data Scrapped Successfully", "shasta_county_california", merged_df
-    except (pd.errors.EmptyDataError, pd.errors.ParserError, ValueError, OSError, IOError,
-            NoSuchElementException, StaleElementReferenceException, WebDriverException) as e:
+    except (
+        pd.errors.EmptyDataError,
+        pd.errors.ParserError,
+        ValueError,
+        OSError,
+        IOError,
+        NoSuchElementException,
+        StaleElementReferenceException,
+        WebDriverException,
+    ) as e:
         print("Internal Error Occurred while running application. Please Try Again!!")
         if "driver_instance" in locals():
             driver_instance.quit()
-        return False, "Internal Error Occurred while running application. Please Try Again!!", "", ""
-
-    
+        return (
+            False,
+            "Internal Error Occurred while running application. Please Try Again!!",
+            "",
+            "",
+        )
