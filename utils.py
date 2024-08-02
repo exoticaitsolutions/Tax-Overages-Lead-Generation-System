@@ -138,7 +138,6 @@ def xlsx_to_json(xlsx_file_path):
     return header_columns, json_data, num_records
 
 
-
 def modification_the_json(json_data_str):
     header_mapping = {
         "First Name": "first_name",
@@ -150,16 +149,16 @@ def modification_the_json(json_data_str):
         "City": "city",
         "State": "state",
         "Zip": "zip",
-        "owner_id": "owner_id"
+        "owner_id": "owner_id",
     }
-    
+
     # Load the JSON data from the string
     data = json.loads(json_data_str)
-    
+
     # Check if data is a list
     if not isinstance(data, list):
         raise ValueError("JSON data must be a list of records")
-    
+
     # Define the PHONE_BURNER_USER_ID (passed as argument)
     phone_burner_user_id = str(PHONE_BURNER_USER_ID)
     # Iterate through each record and modify it
@@ -171,12 +170,12 @@ def modification_the_json(json_data_str):
                 new_record[new_key] = record[old_key]
         new_record["owner_id"] = phone_burner_user_id
         modified_data.append(new_record)
-    
+
     # Convert modified data to JSON string with indentation
     modified_json_data_str = json.dumps(modified_data, indent=4)
     # Get the length of the modified data
     data_length = len(modified_data)
-    
+
     # Return both the modified JSON string and its length
     return json.loads(json.dumps(modified_data, indent=4)), data_length
 
@@ -184,3 +183,63 @@ def modification_the_json(json_data_str):
 def format_location(country_name):
     formatted_location = country_name.replace(" ", "_").lower()
     return formatted_location
+
+
+def mask_password(password: str) -> str:
+    return "*" * len(password)
+
+
+def update_json_file(new_data):
+    """
+    Update the JSON file with new data. If the file does not exist, it will be created.
+    
+    Parameters:
+    - file_path (str): The path to the JSON file.
+    - new_data (dict): A dictionary containing the new data to update.
+    """
+    # Read the existing data from the JSON file
+    try:
+        file_path = "token.json"
+        with open(file_path, "r") as file:
+            data = json.load(file)
+    except FileNotFoundError:
+        # If the file doesn't exist, start with an empty dictionary
+        data = {}
+
+    # Check and update the data
+    for key, value in new_data.items():
+        if key in data:
+            print(f"Key '{key}' found. Updating value to '{value}'")
+        else:
+            print(f"Key '{key}' not found. Adding key '{key}' with value '{value}'")
+
+    # Update the data dictionary with the new data
+    data.update(new_data)
+
+    # Write the updated data back to the JSON file
+    with open(file_path, "w") as file:
+        json.dump(data, file, indent=4)
+
+    print(f"Data has been updated in {file_path}")
+
+
+def read_json_file(file_path):
+    """
+    Read the JSON file and return its contents.
+    
+    Parameters:
+    - file_path (str): The path to the JSON file.
+    
+    Returns:
+    - dict: The contents of the JSON file as a dictionary.
+    """
+    try:
+        with open(file_path, "r") as file:
+            data = json.load(file)
+        return data
+    except FileNotFoundError:
+        print(f"File '{file_path}' not found.")
+        return {}
+    except json.JSONDecodeError:
+        print(f"Error decoding JSON from the file '{file_path}'.")
+        return {}

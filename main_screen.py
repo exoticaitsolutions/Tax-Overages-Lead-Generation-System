@@ -15,7 +15,7 @@ from config import (
     START_TIME,
     THREAD_EVENT,
 )
-from crm_intergation import intergation_with_phoneburner_crn
+from crm_intergation import integration_with_phoneburner_crm
 from utils import (
     center_window,
     get_function,
@@ -86,7 +86,7 @@ class Worker(QObject):
         self, loop, json_data_str, output_text, scrape_thread_event
     ):
         try:
-            status, intergationStatus = intergation_with_phoneburner_crn(
+            status, intergationStatus = integration_with_phoneburner_crm(
                 json_data_str, output_text
             )
             self.intergation_finished.emit(status, intergationStatus)
@@ -123,10 +123,9 @@ class MainWindow(QMainWindow):
         form_layout.addSpacing(20)
         layout.addLayout(form_layout)
 
-        form_layout.addWidget(QLabel("<b>Select a country for Scrapping:</b>"))
+        form_layout.addWidget(QLabel("<b>Select a County for Scrapping:</b>"))
         self.country_combo_box = QComboBox()
-        self.country_combo_box.addItem("Select Country")
-        data = read_json_from_file(JSON_FILE_NAME)
+        self.country_combo_box.addItem("Select County")
         if websitejson:
             for website in websitejson.get("websites", []):
                 name = website.get("name")
@@ -138,15 +137,17 @@ class MainWindow(QMainWindow):
         self.country_combo_box.setFont(font)
         self.country_combo_box.setStyleSheet("height: 30px;")
         form_layout.addWidget(self.country_combo_box)
+        self.country_combo_box.currentIndexChanged.connect(self.on_country_selected)
         form_layout.addWidget(
-            QLabel("<i>Please choose a country from the dropdown menu.</i>")
+            QLabel("<i>Please choose a County from the dropdown menu.</i>")
         )
 
         button_layout = QHBoxLayout()
         form_layout.addLayout(button_layout)
 
-        self.scrapping_button = QPushButton("Scrap Country Website")
+        self.scrapping_button = QPushButton("Scrap County Website")
         self.scrapping_button.setFont(font)
+        self.scrapping_button.setEnabled(False)
         self.scrapping_button.clicked.connect(self.multiple_site_scrapping)
         button_layout.addWidget(self.scrapping_button)
 
@@ -174,6 +175,18 @@ class MainWindow(QMainWindow):
         self.output_text.setFont(QFont("Arial", 12))
         layout.addWidget(self.output_text)
 
+    def on_country_selected(self, index):
+        # Get the selected item data
+        item_data = self.country_combo_box.itemData(index)
+        print('item_data', item_data)
+        if item_data:
+            self.intergate_with_crm.setEnabled(False)
+            self.scrapping_button.setEnabled(True)
+        else:
+            self.intergate_with_crm.setEnabled(False)
+            self.scrapping_button.setEnabled(True)
+        #     url, function_name = item_data
+        #     print(f"Selected URL: {url}, Function Name: {function_name}")
     def multiple_site_scrapping(self):
         self.output_text.clear()
         index = self.country_combo_box.currentIndex()
