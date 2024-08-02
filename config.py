@@ -3,14 +3,7 @@ from datetime import datetime
 import asyncio
 import time
 from screeninfo import get_monitors
-from dotenv import load_dotenv
 import os
-
-# Load environment variables from .env file
-load_dotenv()
-# Determine API type
-
-
 APP_TITLE = "Surplus Funds/Tax Overages Lead Generation System"
 APP_NAME = APP_TITLE
 JSON_FILE_NAME = "websites.json"
@@ -25,24 +18,24 @@ NEW_EVENT_LOOP = asyncio.new_event_loop()
 START_TIME = time.time()
 HEADLESS = False
 # Determine API type
-api_type = os.getenv("API_TYPE")
-API_BASE_URL = os.getenv("API_BASE_URL")
+api_type = "dev"
+API_BASE_URL = "https://www.phoneburner.com"
 TOKEN_TEXT_FILE = "tokens.txt"
 if api_type == "dev":
-    CLIENT_ID = os.getenv("DEV_CLIENT_ID")
-    CLIENT_SECRET = os.getenv("DEV_CLIENT_SECRET")
-    APPLICATION_NAME = os.getenv("DEV_APPLICATION_NAME")
-    CALL_BACK_URL = os.getenv("DEV_CALL_BACK_URL")
-    PHONE_BURNER_USER_ID = os.getenv("DEV_PHONE_BURNER_USER_ID")
-    PHONE_BURNER_USER_NAME = os.getenv("DEV_PHONE_BURNER_USERNAME")
-    PHONE_BURNER_PASSWORD = os.getenv("DEV_PHONE_BURNER_PASSWORD")
+    CLIENT_ID = "3daed5e60e3c6de47c08ed4a2ec5c44ab4d07b58"
+    CLIENT_SECRET = "8a0e5e181a37eaba73b50bcfd069b49766995a59"
+    APPLICATION_NAME = "Tax Overages Lead Generation System"
+    CALL_BACK_URL = "https://www.phoneburner.com/"
+    PHONE_BURNER_USER_ID = "1127743373"
+    PHONE_BURNER_USER_NAME = "rohitash@exoticaitsolutions.com"
+    PHONE_BURNER_PASSWORD = "Exotica@123"
 elif api_type == "prod":
-    CLIENT_ID = os.getenv("PROD_CLIENT_ID")
-    CLIENT_SECRET = os.getenv("PROD_CLIENT_SECRET")
-    APPLICATION_NAME = os.getenv("PROD_APPLICATION_NAME")
-    CALL_BACK_URL = os.getenv("PROD_CALL_BACK_URL")
-    PHONE_BURNER_USER_ID = os.getenv("PROD_PHONE_BURNER_USER_ID")
-    PHONE_BURNER_USER_NAME = os.getenv("PROD_PHONE_BURNER_USERNAME")
-    PHONE_BURNER_PASSWORD = os.getenv("PROD_PHONE_BURNER_PASSWORD")
+    CLIENT_ID = "fea8423d7dd5723fade125b2ec7828e21bdb9bc6"
+    CLIENT_SECRET = "7fd2301e856b22af449ca3b103771db8eade2ef8"
+    APPLICATION_NAME = "Tax Overages Lead Generation System"
+    CALL_BACK_URL = "https://www.phoneburner.com/"
+    PHONE_BURNER_USER_ID = "1127327657"
+    PHONE_BURNER_USER_NAME = "maveninfoadvisors@gmail.com"
+    PHONE_BURNER_PASSWORD = "Exotica"
 else:
     raise ValueError(f"Unknown API_TYPE: {api_type}")

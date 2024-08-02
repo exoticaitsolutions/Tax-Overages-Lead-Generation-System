@@ -104,6 +104,14 @@ def generate_new_refresh_token():
 
 
 def validate_and_generate_new_token():
+
+# Write the data to token.json
+    with open('token.json', 'w') as json_file:
+        json.dump({
+        "code": "",
+        "access_token": "",
+        "refresh_token": ""
+    }, json_file, indent=4)
     try:
         test_url = f"{API_BASE_URL}/rest/1/members/{PHONE_BURNER_USER_ID}"
         access_token = read_json_file("token.json").get("access_token")

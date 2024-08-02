@@ -36,19 +36,6 @@ Run the setup script:
 bash setup.sh
 ```
 
-## Configuration
-To decrypt the .env file, use the following command:
-
-Windows
-```bash
-gpg -d .env.gpg > .env
-```
-
-Unix/MacOS/Linux
-```bash
-gpg -d .env.gpg > .env
-```
-
 ## Run the Project
 Windows
 Execute the main script:

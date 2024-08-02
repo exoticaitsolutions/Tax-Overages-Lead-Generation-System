@@ -27,15 +27,6 @@ from utils import (
 )
 from web_driver import initialize_driver
 
-websitejson = {
-  "websites": [
-    {"name": "New Castle County Delaware", "url": "https://courts.delaware.gov/superior/rightfulowner/sale_a_b1.aspx#b", "function_name": "scrap_courts_delaware_gov_county"},
-    {"name": "Sumter County Florida", "url": "https://www.sumterclerk.com/surplus-funds-list", "function_name": "scrap_sumterclerk_county"},
-    {"name": "Polk County Florida", "url": "https://www.polkcountyclerk.net/280/Surplus-Funds-List", "function_name": "scrap_polkcountyclerk_net_county"},
-    {"name": "Shasta County California", "url": "https://www.shastacounty.gov/tax-collector/page/excess-proceeds", "function_name": "scrap_shasta_california_county"},
-    {"name": "Sarasota County Florida", "url": "https://sarasota.realtdm.com/public/cases/list", "function_name": "scrap_sarasota_county_florida"}
-  ]
-}
 bootstrap_style = """
 QWidget { font-family: Arial, sans-serif; font-size: 14px; }
 QMainWindow { background-color: #f8f9fa; }
@@ -126,8 +117,9 @@ class MainWindow(QMainWindow):
         form_layout.addWidget(QLabel("<b>Select a County for Scrapping:</b>"))
         self.country_combo_box = QComboBox()
         self.country_combo_box.addItem("Select County")
-        if websitejson:
-            for website in websitejson.get("websites", []):
+        data = read_json_from_file(JSON_FILE_NAME)
+        if data:
+            for website in data.get("websites", []):
                 name = website.get("name")
                 url = website.get("url")
                 function_name = website.get("function_name")
