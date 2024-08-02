@@ -147,7 +147,7 @@ class MainWindow(QMainWindow):
 
         self.scrapping_button = QPushButton("Scrap County Website")
         self.scrapping_button.setFont(font)
-        self.scrapping_button.setEnabled(False)
+        self.scrapping_button.setEnabled(True)
         self.scrapping_button.clicked.connect(self.multiple_site_scrapping)
         button_layout.addWidget(self.scrapping_button)
 
