@@ -32,83 +32,88 @@ def scrap_courts_delaware_gov_county(
     print("scrap_courts_delaware_gov_county")
     print_the_output_statement(output_text, f"Opening the site {country_url}")
 
+
     try:
         driver_instance.get(country_url)
-        print_the_output_statement(
-            output_text,
-            f"Scraping started for {country_name}. Please wait a few minutes.",
-        )
-        time.sleep(5)  # Allow time for page to fully load
+        time.sleep(5)
+        headers = driver_instance.find_elements(By.XPATH, '//*[@id="main_content"]/div[4]/table/tbody/tr[1]')
+        print('headers', headers)
+        return False, 'error_message', "", ""
+    #     print_the_output_statement(
+    #         output_text,
+    #         f"Scraping started for {country_name}. Please wait a few minutes.",
+    #     )
+    #     time.sleep(5)  # Allow time for page to fully load
 
-        # Extract table headers
-        table = driver_instance.find_element(By.CLASS_NAME, "table")
-        headers = [
-            header.text for header in table.find_elements(By.XPATH, ".//thead//th")
-        ]
+    #     # Extract table headers
+    #     table = driver_instance.find_element(By.CLASS_NAME, "table")
+    #     headers = [
+    #         header.text for header in table.find_elements(By.XPATH, ".//thead//th")
+    #     ]
 
-        rows = []
-        for i in range(
-            ord("a"), ord("c") + 1
-        ):  # Loop through dropdown values 'a' to 'c'
-            dropdown = driver_instance.find_element(
-                By.XPATH, '//*[@id="main_content"]/select'
-            )
-            dropdown.send_keys(chr(i))
-            time.sleep(3)  # Wait for table data to update
+    #     rows = []
+    #     for i in range(
+    #         ord("a"), ord("c") + 1
+    #     ):  # Loop through dropdown values 'a' to 'c'
+    #         dropdown = driver_instance.find_element(
+    #             By.XPATH, '//*[@id="main_content"]/select'
+    #         )
+    #         dropdown.send_keys(chr(i))
+    #         time.sleep(3)  # Wait for table data to update
 
-            # Extract table rows
-            table = driver_instance.find_element(By.CLASS_NAME, "table")
-            for row in table.find_elements(By.XPATH, ".//tbody//tr"):
-                cells = [cell.text for cell in row.find_elements(By.XPATH, ".//td")]
-                # Remove single alphabetic data entries (often empty cells or headers)
-                cells = [
-                    data for data in cells if not (len(data) == 1 and data.isalpha())
-                ]
-                rows.append(cells)
+    #         # Extract table rows
+    #         table = driver_instance.find_element(By.CLASS_NAME, "table")
+    #         for row in table.find_elements(By.XPATH, ".//tbody//tr"):
+    #             cells = [cell.text for cell in row.find_elements(By.XPATH, ".//td")]
+    #             # Remove single alphabetic data entries (often empty cells or headers)
+    #             cells = [
+    #                 data for data in cells if not (len(data) == 1 and data.isalpha())
+    #             ]
+    #             rows.append(cells)
 
-        # Save scraped data to CSV
-        csv_file = "table_data.csv"
-        with open(csv_file, "w", newline="", encoding="utf-8") as file:
-            writer = csv.writer(file)
-            writer.writerow(headers)
-            writer.writerows(rows)
+    #     # Save scraped data to CSV
+    #     csv_file = "table_data.csv"
+    #     with open(csv_file, "w", newline="", encoding="utf-8") as file:
+    #         writer = csv.writer(file)
+    #         writer.writerow(headers)
+    #         writer.writerows(rows)
 
-        # Define columns of interest and mapping rules
-        columns_of_interest = [
-            "Last Name",
-            "First Name",
-            "Address",
-            "Court Held Amount",
-            "Sale Date",
-            "Case Number",
-        ]
+    #     # Define columns of interest and mapping rules
+    #     columns_of_interest = [
+    #         "Last Name",
+    #         "First Name",
+    #         "Address",
+    #         "Court Held Amount",
+    #         "Sale Date",
+    #         "Case Number",
+    #     ]
 
-        mapping = {
-            "Last Name": "Last Name or Business Name",
-            "First Name": "First Name",
-            "Address": "Address (Sheriff's Sale)",
-            "Court Held Amount": "Court-Held\nAmount",
-            "Sale Date": "Sale Date",
-            "Case Number": "Case Number",
-        }
+    #     mapping = {
+    #         "Last Name": "Last Name or Business Name",
+    #         "First Name": "First Name",
+    #         "Address": "Address (Sheriff's Sale)",
+    #         "Court Held Amount": "Court-Held\nAmount",
+    #         "Sale Date": "Sale Date",
+    #         "Case Number": "Case Number",
+    #     }
 
-        # Load CSV file into DataFrame and clean data
-        df = pd.read_csv(csv_file)
-        df_cleaned = df.drop_duplicates()
+    #     # Load CSV file into DataFrame and clean data
+    #     df = pd.read_csv(csv_file)
+    #     df_cleaned = df.drop_duplicates()
 
-        # Create new DataFrame with columns of interest
-        new_df = pd.DataFrame()
-        for column in columns_of_interest:
-            original_column_name = mapping.get(column, column)
-            if original_column_name in df_cleaned.columns:
-                new_df[column] = df_cleaned[original_column_name]
-            else:
-                new_df[column] = "Nill"  # Fill missing columns with "Nill"
+    #     # Create new DataFrame with columns of interest
+    #     new_df = pd.DataFrame()
+    #     for column in columns_of_interest:
+    #         original_column_name = mapping.get(column, column)
+    #         if original_column_name in df_cleaned.columns:
+    #             new_df[column] = df_cleaned[original_column_name]
+    #         else:
+    #             new_df[column] = "Nill"  # Fill missing columns with "Nill"
 
-        new_df = new_df.drop_duplicates()
+    #     new_df = new_df.drop_duplicates()
 
-        delete_path(csv_file)
-        return True, "Scraping completed successfully", "courts_delaware", new_df
+    #     delete_path(csv_file)
+    #     return True, "Scraping completed successfully", "courts_delaware", new_df
 
     except (
         NoSuchElementException,
