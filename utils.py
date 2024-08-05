@@ -6,9 +6,11 @@ import pandas as pd
 from PyQt5.QtWidgets import QDesktopWidget
 from PyQt5.QtWidgets import QMessageBox
 from PyQt5.QtGui import QTextCursor
+import sys
 
 from config import PHONE_BURNER_USER_ID
 
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 def center_window(window):
     qr = window.frameGeometry()
