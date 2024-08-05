@@ -5,6 +5,9 @@ from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import Qt, pyqtSignal, QObject
 from threading import Thread
+import importlib.util
+
+# Constants and imports
 from config import (
     APP_NAME,
     APP_TITLE,
@@ -18,7 +21,6 @@ from config import (
 from crm_intergation import integration_with_phoneburner_crm
 from utils import (
     center_window,
-    get_function,
     print_the_output_statement,
     read_json_from_file,
     save_to_csv,
@@ -27,6 +29,7 @@ from utils import (
 )
 from web_driver import initialize_driver
 
+# Bootstrap style for the application
 bootstrap_style = """
 QWidget { font-family: Arial, sans-serif; font-size: 14px; }
 QMainWindow { background-color: #f8f9fa; }
@@ -39,6 +42,41 @@ QPushButton:disabled { background-color: #6c757d; border-color: #6c757d; color: 
 QTextEdit { border: 1px solid #ced4da; border-radius: 4px; padding: 5px; font-size: 14px; color: #495057; background-color: white; }
 """
 
+def get_function(function_name, module_name="multiple_scrapping"):
+    """
+    Retrieve a function from a module given its name.
+
+    :param function_name: The name of the function to retrieve.
+    :param module_name: The name of the module where the function is defined.
+    :return: The function object or None if not found.
+    """
+    module_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), f"{module_name}.py")
+    
+    try:
+        spec = importlib.util.spec_from_file_location(module_name, module_path)
+        if spec is None:
+            print(f"Module '{module_name}' could not be found at '{module_path}'.")
+            return None
+
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        
+        func = getattr(module, function_name, None)
+        if not callable(func):
+            print(f"'{function_name}' in module '{module_name}' is not callable.")
+            return None
+        return func
+
+    except FileNotFoundError:
+        print(f"Module file '{module_path}' does not exist.")
+        return None
+    except AttributeError:
+        print(f"Function '{function_name}' not found in module '{module_name}'.")
+        return None
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+        return None
+
 
 class Worker(QObject):
     scrapping_finish = pyqtSignal(bool, str, str)
@@ -49,25 +87,17 @@ class Worker(QObject):
 
     def run_the_scrapping_thread(
         self,
-        loop,
         driver_instance,
         country_name,
         country_url,
-        custom_function_name,
+        import_custom_function,
         output_text,
         scrape_thread_event,
     ):
         try:
-            scrapping_function = get_function(custom_function_name)
-            print('scrapping_function', scrapping_function)
-            if scrapping_function:
-                global csv_data
-                status, scrapping_status, file_name, csv_data = scrapping_function(
-                    driver_instance, country_name, country_url, output_text
-                )
-                self.scrapping_finish.emit(status, scrapping_status, file_name)
-            else:
-                self.scrapping_finish.emit(False, "Function not found", "")
+            global csv_data
+            status, scrapping_status, file_name, csv_data = import_custom_function(driver_instance, country_name, country_url, output_text)
+            self.scrapping_finish.emit(status, scrapping_status, file_name)
         except Exception as e:
             self.scrapping_finish.emit(False, f"Error occurred: {e}", "")
         finally:
@@ -77,9 +107,7 @@ class Worker(QObject):
         self, loop, json_data_str, output_text, scrape_thread_event
     ):
         try:
-            status, intergationStatus = integration_with_phoneburner_crm(
-                json_data_str, output_text
-            )
+            status, intergationStatus = integration_with_phoneburner_crm(json_data_str, output_text)
             self.intergation_finished.emit(status, intergationStatus)
         except Exception as e:
             self.intergation_finished.emit(False, f"Error occurred: {e}")
@@ -130,9 +158,7 @@ class MainWindow(QMainWindow):
         self.country_combo_box.setStyleSheet("height: 30px;")
         form_layout.addWidget(self.country_combo_box)
         self.country_combo_box.currentIndexChanged.connect(self.on_country_selected)
-        form_layout.addWidget(
-            QLabel("<i>Please choose a County from the dropdown menu.</i>")
-        )
+        form_layout.addWidget(QLabel("<i>Please choose a County from the dropdown menu.</i>"))
 
         button_layout = QHBoxLayout()
         form_layout.addLayout(button_layout)
@@ -171,6 +197,7 @@ class MainWindow(QMainWindow):
         # Get the selected item data
         item_data = self.country_combo_box.itemData(index)
         print('item_data', item_data)
+        # Uncomment and adjust based on your needs
         # if item_data:
         #     self.intergate_with_crm.setEnabled(False)
         #     self.scrapping_button.setEnabled(True)
@@ -179,6 +206,7 @@ class MainWindow(QMainWindow):
         #     self.scrapping_button.setEnabled(False)
         #     url, function_name = item_data
         #     print(f"Selected URL: {url}, Function Name: {function_name}")
+
     def multiple_site_scrapping(self):
         self.output_text.clear()
         index = self.country_combo_box.currentIndex()
@@ -194,58 +222,53 @@ class MainWindow(QMainWindow):
         else:
             name = self.country_combo_box.currentText()
             url, function_name = self.country_combo_box.itemData(index)
-            global driver
-            driver = initialize_driver(NEW_EVENT_LOOP)
-            self.worker = Worker()
-            self.worker.scrapping_finish.connect(self.on_scrapping_finished)
-            scrape_thread = Thread(
-                target=self.worker.run_the_scrapping_thread,
-                args=(
-                    NEW_EVENT_LOOP,
-                    driver,
-                    name,
-                    url,
-                    function_name,
-                    self.output_text,
-                    THREAD_EVENT,
-                ),
-            )
-            scrape_thread.start()
+            print(f'selected box \n name = {name} \n County url = {url} \n new custom function = {function_name}' )
+            scrapping_function = get_function(function_name)
+            print(f'scrapping_function = {scrapping_function}')
+            if callable(scrapping_function):
+                global driver
+                driver = initialize_driver(NEW_EVENT_LOOP)
+                self.worker = Worker()
+                self.worker.scrapping_finish.connect(self.on_scrapping_finished)
+                scrape_thread = Thread(
+                    target=self.worker.run_the_scrapping_thread,
+                    args=(
+                        driver,
+                        name,
+                        url,
+                        scrapping_function,  # Pass the function object here
+                        self.output_text,
+                        THREAD_EVENT,
+                    ),
+                )
+                scrape_thread.start()
+            else:
+                show_message_box(
+                    self,
+                    QMessageBox.Warning,
+                    "Validation Error",
+                    "Function not found or is not callable.",
+                )
+                self.scrapping_button.setEnabled(True)
 
     def on_scrapping_finished(self, status, scrapping_status, file_name):
         if status:
             print_the_output_statement(self.output_text, scrapping_status)
             options = QFileDialog.Options()
-            folder_path = QFileDialog.getExistingDirectory(
-                self, "Select Directory", options=options
-            )
+            folder_path = QFileDialog.getExistingDirectory(self, "Select Directory", options=options)
             if folder_path:
-                output_csv_path = os.path.join(
-                    folder_path,
-                    f'{file_name}_{CURRENT_DATE.strftime("%Y_%B_%d")}.{FILE_TYPE}',
-                )
+                output_csv_path = os.path.join(folder_path, f'{file_name}_{CURRENT_DATE.strftime("%Y_%B_%d")}.{FILE_TYPE}')
                 save_to_csv(csv_data, output_csv_path)
-                print_the_output_statement(
-                    self.output_text, f"Data saved successfully to {output_csv_path}"
-                )
-                show_message_box(
-                    self,
-                    QMessageBox.NoIcon,
-                    "Success",
-                    f"Data saved successfully to {output_csv_path}",
-                )
+                print_the_output_statement(self.output_text, f"Data saved successfully to {output_csv_path}")
+                show_message_box(self, QMessageBox.NoIcon, "Success", f"Data saved successfully to {output_csv_path}")
             else:
-                show_message_box(
-                    self, QMessageBox.Warning, "Error", "Data found but failed to save."
-                )
+                show_message_box(self, QMessageBox.Warning, "Error", "Data found but failed to save.")
         else:
             show_message_box(self, QMessageBox.Warning, "Error", scrapping_status)
         driver.quit()
         self.scrapping_button.setEnabled(True)
         total_time = time.time() - START_TIME
-        print_the_output_statement(
-            self.output_text, f"Total execution time: {total_time:.2f} seconds"
-        )
+        print_the_output_statement(self.output_text, f"Total execution time: {total_time:.2f} seconds")
 
     def upload_excel(self):
         print("Excel upload function is not yet implemented.")
@@ -258,36 +281,29 @@ class MainWindow(QMainWindow):
             show_message_box(self, QMessageBox.Warning, "Error", scrapping_status)
         self.intergate_with_crm.setEnabled(True)
         total_time = time.time() - START_TIME
-        print_the_output_statement(
-            self.output_text, f"Total execution time: {total_time:.2f} seconds"
-        )
+        print_the_output_statement(self.output_text, f"Total execution time: {total_time:.2f} seconds")
 
     def intergate_with_crm_function(self):
         self.output_text.clear()
         print_the_output_statement(self.output_text, "Uploading Excel...")
         options = QFileDialog.Options()
-        file_path, _ = QFileDialog.getOpenFileName(
-            self, "Select File", "", "Excel Files (*.xlsx)", options=options
-        )
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select File", "", "Excel Files (*.xlsx)", options=options)
         if file_path:
             self.intergate_with_crm.setEnabled(False)
-            print_the_output_statement(
-                self.output_text, f"Excel file selected: {file_path}"
-            )
+            print_the_output_statement(self.output_text, f"Excel file selected: {file_path}")
             csv_header, json_data_str, num_records = xlsx_to_json(file_path)
             print("csv_header", csv_header)
             if num_records > 0:
                 missing_headers = [
-                    header
-                    for header in [
+                    header for header in [
                         "First Name",
                         "Last Name",
                         "Phone",
                         "Email",
                         "Address Line 1",
                         "Address Line 2",
-                        "City ",
-                        "State ",
+                        "City",
+                        "State",
                         "Zip",
                     ]
                     if header not in csv_header
@@ -302,9 +318,7 @@ class MainWindow(QMainWindow):
                     )
                 else:
                     self.worker = Worker()
-                    self.worker.intergation_finished.connect(
-                        self.on_intergation_finished
-                    )
+                    self.worker.intergation_finished.connect(self.on_intergation_finished)
                     scrape_thread = Thread(
                         target=self.worker.run_intergation_thread,
                         args=(

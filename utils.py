@@ -1,6 +1,6 @@
 import json
 import os
-import importlib
+import importlib.util
 import shutil
 import pandas as pd
 from PyQt5.QtWidgets import QDesktopWidget
@@ -81,14 +81,42 @@ def get_function(function_name, module_name="multiple_scrapping"):
     :return: The function object or None if not found.
     """
     try:
-        module = importlib.import_module(module_name)
+        # Determine the module file path
+        module_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), f"{module_name}.py")
+        
+        # Load the module dynamically
+        spec = importlib.util.spec_from_file_location(module_name, module_path)
+        if spec is None:
+            print(f"Module '{module_name}' could not be found at '{module_path}'.")
+            return None
+        
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        
+        # Retrieve the function from the module
         func = getattr(module, function_name, None)
+        if func is None:
+            print(f"Function '{function_name}' not found in module '{module_name}'.")
         return func
-    except ModuleNotFoundError:
-        print(f"Module {module_name} not found.")
+
+    except FileNotFoundError:
+        print(f"Module file '{module_path}' does not exist.")
+        return None
+    except AttributeError as e:
+        print(f"An AttributeError occurred: {e}")
+        return None
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+        return None
+
+    except FileNotFoundError:
+        print(f"Module file '{module_path}' does not exist.")
         return None
     except AttributeError:
-        print(f"Function {function_name} not found in module {module_name}.")
+        print(f"Function '{function_name}' not found in module '{module_name}'.")
+        return None
+    except Exception as e:
+        print(f"An error occurred: {e}")
         return None
 
 
