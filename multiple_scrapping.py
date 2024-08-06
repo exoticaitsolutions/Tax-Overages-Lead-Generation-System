@@ -1,6 +1,7 @@
 import csv
 import os
 import re
+import sys
 import time
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import (
@@ -21,11 +22,16 @@ from utils import check_file_downloaded, delete_folder, delete_path, format_loca
 def scrape_table(driver, dropdown_xpath, table_class_name, alphabet_range):
     rows = []
     for i in alphabet_range:
+        current_letter = chr(i)
+        sys.stdout.write('\r' + f"Data scraping for the letter: {current_letter}")
+        sys.stdout.flush()
+        time.sleep(1)
         driver.find_element(By.XPATH, dropdown_xpath).send_keys(chr(i))
         time.sleep(3)
         table = driver.find_element(By.CLASS_NAME, table_class_name)
-        rows.extend([cell.text for row in table.find_elements(By.XPATH, './/tbody//tr')
-                            for cell in row.find_elements(By.XPATH, './/td')])
+        for row in table.find_elements(By.XPATH, './/tbody//tr'):
+            cells = [cell.text for cell in row.find_elements(By.XPATH, './/td')]
+            rows.append(cells)
     return rows
 
 # New Castle County Delaware Function 
@@ -33,15 +39,20 @@ def scrap_new_castle_county_delaware(driver_instance, country_name, country_url,
     print_the_output_statement(output_text, f"Opening the site {country_url}")
     try:
         driver_instance.get(country_url)
+        print_the_output_statement( output_text, f"Scraping started for {country_name}. Please wait a few minutes.",)
         time.sleep(5)
         table = driver_instance.find_element(By.CLASS_NAME, 'table')
         headers = [header.text for header in table.find_elements(By.XPATH, './/thead//th')]
         rows = scrape_table(driver_instance, '//*[@id="main_content"]/select', 'table', range(ord('a'), ord('z') + 1))
+        # Handle rows with varying lengths
+        max_len = max(len(row) for row in rows)
+        rows = [row + [''] * (max_len - len(row)) for row in rows]  # Pad rows to have the same length
+
         with open('table_data.csv', 'w', newline='', encoding='utf-8') as file:
             writer = csv.writer(file)
             writer.writerow(headers)
             writer.writerows(rows)
-
+        print('Data Scrapp successfully and saving  to csv file ')
         columns_of_interest = [
             "Property Address", "Prior Owner", "Parcel ID", "Opening Bid",
             "Sale Price", "Surplus amount", "Sale Date", "Case Number",
@@ -80,25 +91,34 @@ def scrap_new_castle_county_delaware(driver_instance, country_name, country_url,
 
 # Sumter County Florida Function
 def scrap_sumter_county_florida(driver_instance, country_name, country_url, output_text):
+    print("scrap_sumterclerk_county")
     os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
-    pdf_filename = "Tax Deed Surplus.pdf"
-    pdf_path = ''
     all_tables = []
+    pdf_filename = "Tax Deed Surplus.pdf"
+    pdf_path = os.path.join(DOWNLOAD_FOLDER, pdf_filename)
+
+    print_the_output_statement(output_text, f"Opening the site {country_url}")
+
     try:
-        print_the_output_statement(output_text, f"Opening the site {country_url}")
-        if check_file_downloaded(DOWNLOAD_FOLDER, "Tax Deed Surplus.pdf"):
-            pdf_path = os.path.join(DOWNLOAD_FOLDER, "Tax Deed Surplus.pdf")
-        else:
-            driver_instance.get(country_url)
-            print_the_output_statement(output_text, f"Scraping started for {country_name}. Please wait a few minutes.")
-            download_button_xpath = "/html/body/div[3]/main/div[2]/div/section/div/div/div/div/div/div[1]/ul[2]/li[2]/strong/a"
-            actions = ActionChains(driver_instance)
-            download_element = driver_instance.find_element(
-                By.XPATH, download_button_xpath
-            )
-            actions.move_to_element(download_element).click().perform()
+        print_the_output_statement(
+            output_text,
+            f"Scraping started for {country_name}. Please wait a few minutes.",
+        )
+        
+        
+
+        # Check if PDF is already downloaded
+        if not check_file_downloaded(DOWNLOAD_FOLDER, pdf_filename):
+            driver_instance.get('https://docs.google.com/viewer?url=https://docs.google.com/spreadsheets/d/1uW4muYX69nJvSNPqLt93jf0IYcNWxzpA3HEjUxIZoz4/export?format=pdf')
             time.sleep(5)
-            wait = WebDriverWait(driver_instance, 30)
+            driver_instance.save_screenshot(os.path.join(DOWNLOAD_FOLDER, 'screenshot.png'))
+            # Click to download the PDF
+            # download_element = driver_instance.find_element(By.CSS_SELECTOR, 'a[title="Downloadable PDF"]')
+            # download_element.click()            
+            #   # Wait for download to start
+            start_time = time.time()
+            # Wait for download to complete
+            wait = WebDriverWait(driver_instance, 60)
             download_path = wait.until(
                 EC.presence_of_element_located(
                     (
@@ -107,10 +127,15 @@ def scrap_sumter_county_florida(driver_instance, country_name, country_url, outp
                     )
                 )
             )
+            actions = ActionChains(driver_instance)
             actions.move_to_element(download_path).click().perform()
+            end_time = time.time()
+            download_duration = end_time - start_time
+            print(f'Downloading the pdf in the {pdf_path}')
+            print(f"Download completed in {download_duration:.2f} seconds")
             time.sleep(5)
-            pdf_path = os.path.join(DOWNLOAD_FOLDER, "Tax Deed Surplus.pdf")
-        print('pdf_path', pdf_path)
+            print(f'Downloaded  the pdf in the {pdf_path} then the data scrapping in the progress and save into the csv' )
+        # Read and process the PDF
         with pdfplumber.open(pdf_path) as pdf:
             for page in pdf.pages:
                 tables = page.extract_tables()
@@ -153,22 +178,74 @@ def scrap_sumter_county_florida(driver_instance, country_name, country_url, outp
             )
         ]
         combined_df = combined_df.fillna("Nill")
-        # Check for specific columns
-        if "PROPERTY OWNER" in combined_df.columns and "PROPERTY ADDRESS" in combined_df.columns:
-            # Ensure that 'PROPERTY OWNER' is not empty and 'PROPERTY ADDRESS' has data
-            combined_df = combined_df[
-                combined_df["PROPERTY OWNER"].str.strip() != ""
-            ]
-            combined_df = combined_df[
-                combined_df["PROPERTY ADDRESS"].str.strip() != ""
-            ]
-        # # Process rows to handle empty rows by filling with "Nill"
-        return False, "Data Scrapped Successfully", format_location(country_name), 'merged_df'
-    except (NoSuchElementException, StaleElementReferenceException, WebDriverException, ValueError) as e:
-        error_message = "Internal Error Occurred while running application. Please Try Again!!"
-        print(error_message)
-        print_the_output_statement(output_text, error_message)
-        return False, error_message, "", ""
+        # Process rows to handle empty rows by filling with "Nill"
+        even_rows = combined_df.iloc[::2].reset_index(drop=True)
+        odd_rows = combined_df.iloc[1::2].reset_index(drop=True)
+        odd_rows = odd_rows.reindex(even_rows.index, fill_value=pd.NA)
+        merged_df = pd.concat([even_rows, odd_rows.add_suffix("_Odd")], axis=1)
+        # Rename columns and handle missing columns
+        column_mapping = {
+            "PROPERTY OWNER & ADDRESS": "Property Owner",
+            "PROPERTY OWNER & ADDRESS_Odd": "Property Address",
+            "PARCEL #": "Parcel #",
+            "AMOUNT OF SURPLUS": "Amount of Surplus",
+            "SALE DATE": "Sale Date",
+            "APPLICATION DATE": "Application Date",
+        }
+        merged_df = merged_df.rename(columns=column_mapping)
+
+        final_columns = [
+            "Property Owner",
+            "Property Address",
+            "Sale Date",
+            "Amount of Surplus",
+            "Parcel #",
+            "Application Date",
+        ]
+        for col in final_columns:
+            if col not in merged_df.columns:
+                merged_df[col] = "Nill"
+        merged_df = merged_df[final_columns]
+        merged_df = merged_df.replace(
+            {pd.NA: "Nill", pd.NaT: "Nill"}
+        )  # Handle missing values
+
+        # Clean up
+        delete_path(pdf_path)
+        delete_folder(DOWNLOAD_FOLDER)
+
+        return True, "Data Scrapped Successfully", "sumterclerk", merged_df
+
+    except (
+        NoSuchElementException,
+        StaleElementReferenceException,
+        WebDriverException,
+    ) as e:
+        print(f"Error occurred: {e}")
+        if "driver_instance" in locals():
+            driver_instance.quit()
+        return (
+            False,
+            "Internal Error Occurred while running application. Please Try Again!!",
+            "",
+            "",
+        )
+    except (
+        pd.errors.EmptyDataError,
+        pd.errors.ParserError,
+        ValueError,
+        OSError,
+        IOError,
+    ) as e:
+        print(f"Error occurred: {e}")
+        if "driver_instance" in locals():
+            driver_instance.quit()
+        return (
+            False,
+            "Internal Error Occurred while running application. Please Try Again!!",
+            "",
+            "",
+        )
     finally:
         if "driver_instance" in locals():
             driver_instance.quit()
@@ -329,6 +406,7 @@ def scrap_polk_county_florida(driver_instance, country_name, country_url, output
         driver_instance.execute_script(f"window.scrollBy(0,0.3);")
         print("Scrollling In Progress............")
         # Iterate over rows and extract header
+        print('data is scrapping and save into the csv file')
         for cont in conts:
             cells = cont.find_elements(By.TAG_NAME, "th")
             header = [cell.text for cell in cells]
@@ -388,9 +466,15 @@ def scrap_shasta_county_california(driver_instance, country_name, country_url, o
         if check_file_downloaded(DOWNLOAD_FOLDER, pdf_filename):
             pdf_path = os.path.join(DOWNLOAD_FOLDER, pdf_filename)
         else:
+             start_time = time.time()
              driver_instance.get(pdf_url)
              time.sleep(5)  # Adjust sleep time if needed
              pdf_path = os.path.join(DOWNLOAD_FOLDER, pdf_filename)
+             end_time = time.time()
+             download_duration = end_time - start_time
+             print(f'Downloading the pdf in the {pdf_path}')
+
+        print(f"Download completed in {download_duration:.2f} seconds")
         print('pdf_path', pdf_path)
         with open(pdf_path, "rb") as file:
             pdf_reader = PdfReader(file)
@@ -400,6 +484,7 @@ def scrap_shasta_county_california(driver_instance, country_name, country_url, o
             r"(\w+)\s+([\d-]+)\s+(.+?)\s+(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s+(REDEEMED|WITHDRAWN|NO SALE|\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*(.*)?"
         )
         data = []
+        print(f'Downloaded  the pdf in the {pdf_path} then the data scrapping in the progress and save into the csv' )
         for line in pdf_text.split("\n"):
             match = pattern.match(line)
             if match:

@@ -198,14 +198,16 @@ class MainWindow(QMainWindow):
         item_data = self.country_combo_box.itemData(index)
         print('item_data', item_data)
         # Uncomment and adjust based on your needs
-        # if item_data:
-        #     self.intergate_with_crm.setEnabled(False)
-        #     self.scrapping_button.setEnabled(True)
-        # else:
-        #     self.intergate_with_crm.setEnabled(True)
-        #     self.scrapping_button.setEnabled(False)
-        #     url, function_name = item_data
-        #     print(f"Selected URL: {url}, Function Name: {function_name}")
+        if item_data:
+            self.intergate_with_crm.setEnabled(False)
+            self.scrapping_button.setEnabled(True)
+        else:
+            self.intergate_with_crm.setEnabled(True)
+            self.scrapping_button.setEnabled(False)
+            url, function_name = item_data
+            print(f"Selected URL: {url}, Function Name: {function_name}")
+
+
 
     def multiple_site_scrapping(self):
         self.output_text.clear()

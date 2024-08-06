@@ -27,6 +27,9 @@ def initialize_driver(loop):
         },
     )
     chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument('--disable-dev-shm-usage')
+    chrome_options.add_argument('--enable-logging')
+    chrome_options.add_argument('--v=1')  # Set the verbosity level for logging
     chrome_options.add_argument("--disable-software-rasterizer")
     # service = Service(chromedriver_path)
     return webdriver.Chrome(service="", options=chrome_options)

@@ -109,16 +109,6 @@ def get_function(function_name, module_name="multiple_scrapping"):
         print(f"An unexpected error occurred: {e}")
         return None
 
-    except FileNotFoundError:
-        print(f"Module file '{module_path}' does not exist.")
-        return None
-    except AttributeError:
-        print(f"Function '{function_name}' not found in module '{module_name}'.")
-        return None
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        return None
-
 
 def delete_folder(folder_path):
     """
@@ -273,3 +263,5 @@ def read_json_file(file_path):
     except json.JSONDecodeError:
         print(f"Error decoding JSON from the file '{file_path}'.")
         return {}
+
+
