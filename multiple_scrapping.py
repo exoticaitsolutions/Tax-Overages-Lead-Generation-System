@@ -93,50 +93,46 @@ def scrap_new_castle_county_delaware(driver_instance, country_name, country_url,
 def scrap_sumter_county_florida(driver_instance, country_name, country_url, output_text):
     print("scrap_sumterclerk_county")
     os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
+    main_download_file = None
     all_tables = []
-    pdf_filename = "Tax Deed Surplus.pdf"
-    pdf_path = os.path.join(DOWNLOAD_FOLDER, pdf_filename)
-
     print_the_output_statement(output_text, f"Opening the site {country_url}")
-
     try:
+        driver_instance.get(country_url)
+        time.sleep(5)
         print_the_output_statement(
             output_text,
             f"Scraping started for {country_name}. Please wait a few minutes.",
         )
-        
-        
 
-        # Check if PDF is already downloaded
-        if not check_file_downloaded(DOWNLOAD_FOLDER, pdf_filename):
-            driver_instance.get('https://docs.google.com/viewer?url=https://docs.google.com/spreadsheets/d/1uW4muYX69nJvSNPqLt93jf0IYcNWxzpA3HEjUxIZoz4/export?format=pdf')
-            time.sleep(5)
-            driver_instance.save_screenshot(os.path.join(DOWNLOAD_FOLDER, 'screenshot.png'))
-            # Click to download the PDF
-            # download_element = driver_instance.find_element(By.CSS_SELECTOR, 'a[title="Downloadable PDF"]')
-            # download_element.click()            
-            #   # Wait for download to start
-            start_time = time.time()
-            # Wait for download to complete
+        if check_file_downloaded(DOWNLOAD_FOLDER, "Tax Deed Surplus.pdf"):
+            main_download_file = os.path.join(DOWNLOAD_FOLDER, "Tax Deed Surplus.pdf")
+        else:
+            download_button_xpath = "/html/body/div[3]/main/div[2]/div/section/div/div/div/div/div/div[1]/ul[2]/li[2]/strong/a"
+            actions = ActionChains(driver_instance)
+            download_element = driver_instance.find_element(
+                By.XPATH, download_button_xpath
+            )
+            actions.move_to_element(download_element).click().perform()
+            print(f'download_element element is found and clicked ')
+            time.sleep(10)
             wait = WebDriverWait(driver_instance, 60)
             download_path = wait.until(
                 EC.presence_of_element_located(
                     (
                         By.XPATH,
-                        "/html/body/div[1]/div[4]/div/div[3]/div[2]/div[2]/div[2]",
+                        "/html/body/div[1]/div[4]/div/div[3]/div[2]/div[2]/div[2]/div",
                     )
                 )
             )
-            actions = ActionChains(driver_instance)
             actions.move_to_element(download_path).click().perform()
-            end_time = time.time()
-            download_duration = end_time - start_time
-            print(f'Downloading the pdf in the {pdf_path}')
-            print(f"Download completed in {download_duration:.2f} seconds")
+            print(f'download_path is found and clicked')
+            print('Downlading the pdf ............................................')
             time.sleep(5)
-            print(f'Downloaded  the pdf in the {pdf_path} then the data scrapping in the progress and save into the csv' )
-        # Read and process the PDF
-        with pdfplumber.open(pdf_path) as pdf:
+            main_download_file = os.path.join(DOWNLOAD_FOLDER, "Tax Deed Surplus.pdf")
+            print(f'Downladed the  the pdf {main_download_file}')
+        print("main_download_file", main_download_file)
+
+        with pdfplumber.open(main_download_file) as pdf:
             for page in pdf.pages:
                 tables = page.extract_tables()
                 for table in tables:
@@ -166,11 +162,13 @@ def scrap_sumter_county_florida(driver_instance, country_name, country_url, outp
                         )
                     ]
                     all_tables.append(df)
+
         if not all_tables:
             if "driver_instance" in locals():
                 driver_instance.quit()
             return False, "No tables found in the PDF.", "", ""
-        # Combine all tables into one DataFrame
+
+        print("Combining all tables into one DataFrame...")
         combined_df = pd.concat(all_tables, ignore_index=True).dropna(how="all")
         combined_df = combined_df[
             combined_df.apply(
@@ -178,12 +176,13 @@ def scrap_sumter_county_florida(driver_instance, country_name, country_url, outp
             )
         ]
         combined_df = combined_df.fillna("Nill")
-        # Process rows to handle empty rows by filling with "Nill"
+
+        # Process to handle empty rows by filling with "Nill"
         even_rows = combined_df.iloc[::2].reset_index(drop=True)
         odd_rows = combined_df.iloc[1::2].reset_index(drop=True)
         odd_rows = odd_rows.reindex(even_rows.index, fill_value=pd.NA)
         merged_df = pd.concat([even_rows, odd_rows.add_suffix("_Odd")], axis=1)
-        # Rename columns and handle missing columns
+
         column_mapping = {
             "PROPERTY OWNER & ADDRESS": "Property Owner",
             "PROPERTY OWNER & ADDRESS_Odd": "Property Address",
@@ -202,53 +201,58 @@ def scrap_sumter_county_florida(driver_instance, country_name, country_url, outp
             "Parcel #",
             "Application Date",
         ]
+        # Ensure all final columns are present and fill missing columns with "Nill"
         for col in final_columns:
             if col not in merged_df.columns:
                 merged_df[col] = "Nill"
+
         merged_df = merged_df[final_columns]
         merged_df = merged_df.replace(
             {pd.NA: "Nill", pd.NaT: "Nill"}
         )  # Handle missing values
-
-        # Clean up
-        delete_path(pdf_path)
+        delete_path(main_download_file)
         delete_folder(DOWNLOAD_FOLDER)
-
-        return True, "Data Scrapped Successfully", "sumterclerk", merged_df
-
-    except (
-        NoSuchElementException,
-        StaleElementReferenceException,
-        WebDriverException,
-    ) as e:
-        print(f"Error occurred: {e}")
+        return True, "Data Scrapped Successfully",format_location(country_name), merged_df
+    except pd.errors.EmptyDataError:
+        print("No data found in the PDF.")
         if "driver_instance" in locals():
             driver_instance.quit()
-        return (
-            False,
-            "Internal Error Occurred while running application. Please Try Again!!",
-            "",
-            "",
-        )
-    except (
-        pd.errors.EmptyDataError,
-        pd.errors.ParserError,
-        ValueError,
-        OSError,
-        IOError,
-    ) as e:
-        print(f"Error occurred: {e}")
+        return False, "No data found in the PDF.", "", ""
+    except pd.errors.ParserError as e:
+        print(f"Pandas parsing error: {e}")
         if "driver_instance" in locals():
             driver_instance.quit()
-        return (
-            False,
-            "Internal Error Occurred while running application. Please Try Again!!",
-            "",
-            "",
-        )
-    finally:
+        return False, f"Pandas parsing error: {e}", "", ""
+    except PermissionError:
+        print(f"Permission denied: {'csv_path.csv'}")
         if "driver_instance" in locals():
             driver_instance.quit()
+        return False, f"Permission denied: {'csv_path.csv'}", "", ""
+    except ValueError as e:
+        print(f"An error occurred: {e}")
+        if "driver_instance" in locals():
+            driver_instance.quit()
+        return False, f"An error occurred: {e}", "", ""
+    except (OSError, IOError) as e:
+        print(f"An error occurred: {e}")
+        if "driver_instance" in locals():
+            driver_instance.quit()
+        return False, f"An error occurred: {e}", "", ""
+    except NoSuchElementException as e:
+        print(f"An error occurred: {e}")
+        if "driver_instance" in locals():
+            driver_instance.quit()
+        return False, f"An error occurred: {e}", "", ""
+    except StaleElementReferenceException as e:
+        print(f"An error occurred: {e}")
+        if "driver_instance" in locals():
+            driver_instance.quit()
+        return False, f"An error occurred: {e}", "", ""
+    except WebDriverException as e:
+        print(f"An error occurred: {e}")
+        if "driver_instance" in locals():
+            driver_instance.quit()
+        return False, f"An error occurred: {e}", "", ""
 
 
 # Sarasota County Florida Function
