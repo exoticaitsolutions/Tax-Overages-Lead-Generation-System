@@ -3,6 +3,9 @@ import os
 import importlib.util
 import shutil
 import pandas as pd
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.common.by import By
 from PyQt5.QtWidgets import QDesktopWidget
 from PyQt5.QtWidgets import QMessageBox
 from PyQt5.QtGui import QTextCursor
@@ -11,6 +14,10 @@ import sys
 from config import PHONE_BURNER_USER_ID
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+def wait_and_click(driver, locator_type, locator_value, wait_time=30):
+    WebDriverWait(driver, wait_time).until(EC.element_to_be_clickable((locator_type, locator_value))).click()
+
 
 def center_window(window):
     qr = window.frameGeometry()
@@ -265,3 +272,15 @@ def read_json_file(file_path):
         return {}
 
 
+def has_significant_data(data):
+    """
+    Check if the data has significant content. 
+    This function can be adjusted based on what you consider as 'significant'.
+    """
+    if data:
+        # Example criteria for 'significant' data:
+        # Check if it's a non-empty dictionary or list
+        if isinstance(data, (dict, list)) and len(data) > 0:
+            return True
+        # Add more criteria if needed
+    return False
