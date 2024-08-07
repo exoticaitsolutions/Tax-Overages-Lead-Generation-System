@@ -52,72 +52,53 @@ def scrap_new_castle_county_delaware(
             output_text,
             f"Scraping started for {country_name}. Please wait a few minutes.",
         )
-        # table = driver_instance.find_element(By.CLASS_NAME, 'table-responsive')
-        # # Extract header data from the first row
-        # header_rows = table.find_elements(By.TAG_NAME, 'tr')
-        # header_data = []
-        # if header_rows:
-        #     header_cells = header_rows[0].find_elements(By.TAG_NAME, 'td')
-        #     for cell in header_cells:
-        #         strong_tag = cell.find_element(By.TAG_NAME, 'strong')
-        #         if strong_tag:
-        #             header_data.append(strong_tag.text)
-        # print("Header data:", header_data)
-        # rows = []
-        # for i in range(ord("a"), ord("z") + 1):
-        #     current_letter = chr(i)
-        #     print(f"Data scraping for the letter: {current_letter}")
-        #     # dropdown_element = driver_instance.find_element(By.XPATH, '//*[@id="main_content"]/select')
-        #     # print('dropdown_element')
-
-        return False, 'error_message', "", ""
-        # time.sleep(6)
-        # # Locate the table
-        # table = driver_instance.find_element(By.CLASS_NAME, "table")
-        # # Extract table headers
-        # headers = [
-        #     header.text for header in table.find_elements(By.XPATH, ".//thead//th")
-        # ]
-        # # Extract table rows
-        # rows = []
-        # for i in range(ord("a"), ord("z") + 1):
+        time.sleep(6)
+        # Locate the table
+        table = driver_instance.find_element(By.CLASS_NAME, "table")
+        # Extract table headers
+        headers = [
+            header.text for header in table.find_elements(By.XPATH, ".//thead//th")
+        ]
+        # Extract table rows
+        rows = []
+        for i in range(ord("a"), ord("z") + 1):
    
-        #     dropdown = driver_instance.find_element(
-        #         By.XPATH, '//*[@id="main_content"]/select'
-        #     )
-        #     dropdown.send_keys(chr(i))
-        #     time.sleep(3)
-        #     # Locate the table
-        #     table = driver_instance.find_element(By.CLASS_NAME, "table")
-        #     for row in table.find_elements(By.XPATH, ".//tbody//tr"):
-        #         cells = [cell.text for cell in row.find_elements(By.XPATH, ".//td")]
-        #         if len(cells) > 1 and cells != ["No Current Records"]:
-        #             rows.append(cells)
-        # # Save scraped data to CSV
-        # csv_file = "table_data.csv"
-        # with open(csv_file, "w", newline="", encoding="utf-8") as file:
-        #     writer = csv.writer(file)
-        #     writer.writerow(headers)
-        #     writer.writerows(rows)
+            dropdown = driver_instance.find_element(
+                By.XPATH, '//*[@id="main_content"]/select'
+            )
+            dropdown.send_keys(chr(i))
+            time.sleep(3)
+            # Locate the table
+            table = driver_instance.find_element(By.CLASS_NAME, "table")
+            for row in table.find_elements(By.XPATH, ".//tbody//tr"):
+                cells = [cell.text for cell in row.find_elements(By.XPATH, ".//td")]
+                if len(cells) > 1 and cells != ["No Current Records"]:
+                    rows.append(cells)
+        # Save scraped data to CSV
+        csv_file = "table_data.csv"
+        with open(csv_file, "w", newline="", encoding="utf-8") as file:
+            writer = csv.writer(file)
+            writer.writerow(headers)
+            writer.writerows(rows)
 
-        # # Load data to DataFrame
-        # df = pd.read_csv(csv_file)
-        # # Remove duplicate rows
-        # df_cleaned = df.drop_duplicates()
+        # Load data to DataFrame
+        df = pd.read_csv(csv_file)
+        # Remove duplicate rows
+        df_cleaned = df.drop_duplicates()
 
-        # # Drop the last row
-        # df_cleaned = df_cleaned.iloc[:-1]
+        # Drop the last row
+        df_cleaned = df_cleaned.iloc[:-1]
 
-        # # Save cleaned data back to CSV
-        # # df_cleaned.to_csv('table_data_cleaned.csv', index=False)
-        # # Delete the original CSV file
-        # os.remove(csv_file)
-        # return (
-        #     True,
-        #     "Data Scrapped Successfully",
-        #     format_location(country_name),
-        #     df_cleaned,
-        # )
+        # Save cleaned data back to CSV
+        # df_cleaned.to_csv('table_data_cleaned.csv', index=False)
+        # Delete the original CSV file
+        os.remove(csv_file)
+        return (
+            True,
+            "Data Scrapped Successfully",
+            format_location(country_name),
+            df_cleaned,
+        )
     except (
         NoSuchElementException,
         StaleElementReferenceException,
@@ -370,7 +351,6 @@ def scrap_sarasota_county_florida(driver, country_name, country_url, output_text
             # number_of_rows = len(rows)
             number_of_rows = 6
             print(f"Total number of rows: {number_of_rows}")
-
             if number_of_rows > 0:
                 # Extract the header from the table
                 header_data = [
@@ -388,9 +368,8 @@ def scrap_sarasota_county_florida(driver, country_name, country_url, output_text
                     table = driver.find_element(By.ID, "county-setup")
                     rows = table.find_elements(By.TAG_NAME, "tr")
                     row = rows[i]
-                    smooth_scroll_to_element(driver, rows[i], offset_percentage=30)
+                    driver.execute_script("window.scrollBy(0, window.innerHeight * 0.3);")
                     cols = row.find_elements(By.TAG_NAME, "td")
-
                     if cols:
                         row_data = [col.text.strip() for col in cols]
                         if any(row_data):
