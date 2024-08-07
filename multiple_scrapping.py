@@ -41,78 +41,63 @@ def smooth_scroll_to_element(driver, element, offset_percentage=10):
     )
 
 # New Castle County Delaware Function
-def scrap_new_castle_county_delaware(driver_instance, country_name, country_url, output_text):
-    os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
-    file_name = f"{format_location(country_name)}.json"
-    file_path = os.path.join(DOWNLOAD_FOLDER, file_name)
+def scrap_new_castle_county_delaware(
+    driver_instance, country_name, country_url, output_text
+):
     print_the_output_statement(output_text, f"Opening the site {country_url}")
-
     try:
-        if os.path.isfile(file_path):
-            print(f"File already exists: {file_path}")
-        else:
-            driver_instance.get(country_url)
-            time.sleep(5)
-            print_the_output_statement(output_text, f"Scraping started for {country_name}. Please wait a few minutes.")
-
-            table = driver_instance.find_element(By.CLASS_NAME, 'table-responsive')
-            
-            header_rows = table.find_elements(By.TAG_NAME, 'tr')
-            header_data = []
-            if header_rows:
-                header_cells = header_rows[0].find_elements(By.TAG_NAME, 'td')
-                for cell in header_cells:
-                    strong_tag = cell.find_element(By.TAG_NAME, 'strong')
-                    if strong_tag:
-                        header_text = strong_tag.text.strip().replace('\n', ' ')
-                        header_data.append(header_text)
-                print("Header data:", header_data)
-
-            all_rows_data = []
-            dropdown_element = WebDriverWait(driver_instance, 10).until(
-                EC.presence_of_element_located((By.XPATH, '//*[@id="main_content"]/select'))
+        driver_instance.get(country_url)
+        time.sleep(5)
+        print_the_output_statement(
+            output_text,
+            f"Scraping started for {country_name}. Please wait a few minutes.",
+        )
+        time.sleep(6)
+        # Locate the table
+        table = driver_instance.find_element(By.CLASS_NAME, "table")
+        # Extract table headers
+        headers = [
+            header.text for header in table.find_elements(By.XPATH, ".//thead//th")
+        ]
+        # Extract table rows
+        rows = []
+        for i in range(ord("a"), ord("z") + 1):
+   
+            dropdown = driver_instance.find_element(
+                By.XPATH, '//*[@id="main_content"]/select'
             )
-            select = Select(dropdown_element)
-            for i in range(ord("a"), ord("z") + 1):  # Adjust range if needed
-                current_letter = chr(i)
-                print(f"Data scraping for the letter: {current_letter}")
-                select.select_by_visible_text(current_letter.upper())
-                time.sleep(5)
-                
-                # Re-fetch table rows to include new data
-                rows = table.find_elements(By.TAG_NAME, 'tr')
-                for row in rows[1:]:  # Skip the first row (header row)
-                    if 'success' in row.get_attribute('class'):
-                        continue
-                    cells = row.find_elements(By.TAG_NAME, 'td')
-                    if cells:
-                        row_data = [cell.text.strip().replace('\n', ' ') for cell in cells]
-                        if len(header_data) == len(row_data):
-                            row_dict = dict(zip(header_data, row_data))
-                            all_rows_data.append(row_dict)
-            with open(file_path, "w") as json_file:
-                json.dump(all_rows_data, json_file, indent=4)
-        
-            print(f"Data saved to: {file_path}")
-        json_file_read = read_json_file(file_path)
-        # Create DataFrame
-        df_final = pd.DataFrame(json_file_read)
-        # Remove semicolons from the DataFrame
-        column_mapping = {
-            "Last Name or Business Name": "Last Name",
-            "Address (Sheriff's Sale)": "Address",
-            "Court-Held Amount": "Court Held Amount",
-           
-        }
-        df_final = df_final.rename(columns=column_mapping)
-        df_final = df_final.applymap(lambda x: x.replace(';', '') if isinstance(x, str) else x)
-        delete_path(file_path)
-        delete_folder(DOWNLOAD_FOLDER)
+            dropdown.send_keys(chr(i))
+            time.sleep(3)
+            # Locate the table
+            table = driver_instance.find_element(By.CLASS_NAME, "table")
+            for row in table.find_elements(By.XPATH, ".//tbody//tr"):
+                cells = [cell.text for cell in row.find_elements(By.XPATH, ".//td")]
+                if len(cells) > 1 and cells != ["No Current Records"]:
+                    rows.append(cells)
+        # Save scraped data to CSV
+        csv_file = "table_data.csv"
+        with open(csv_file, "w", newline="", encoding="utf-8") as file:
+            writer = csv.writer(file)
+            writer.writerow(headers)
+            writer.writerows(rows)
+
+        # Load data to DataFrame
+        df = pd.read_csv(csv_file)
+        # Remove duplicate rows
+        df_cleaned = df.drop_duplicates()
+
+        # Drop the last row
+        df_cleaned = df_cleaned.iloc[:-1]
+
+        # Save cleaned data back to CSV
+        # df_cleaned.to_csv('table_data_cleaned.csv', index=False)
+        # Delete the original CSV file
+        os.remove(csv_file)
         return (
-            False,
-            "Data Scraped Successfully",
+            True,
+            "Data Scrapped Successfully",
             format_location(country_name),
-            df_final,
+            df_cleaned,
         )
     except (
         NoSuchElementException,
@@ -125,7 +110,7 @@ def scrap_new_castle_county_delaware(driver_instance, country_name, country_url,
         print_the_output_statement(output_text, error_message)
         return False, error_message, "", ""
     finally:
-        if 'driver_instance' in locals():
+        if "driver_instance" in locals():
             driver_instance.quit()
 
 
