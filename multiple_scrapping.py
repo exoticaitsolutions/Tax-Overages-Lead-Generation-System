@@ -29,6 +29,16 @@ from utils import (
 
 # Utility function to scrape table data
 
+def smooth_scroll_to_element(driver, element, offset_percentage=10):
+    """Scroll the page until the element is in view with a specified offset."""
+    # Calculate the viewport height and the offset in pixels
+    viewport_height = driver.execute_script("return window.innerHeight")
+    offset = viewport_height * (offset_percentage / 100.0)
+    # Scroll to the element with the offset
+    driver.execute_script(
+        "window.scrollTo({ top: arguments[0].offsetTop - arguments[1], behavior: 'smooth' });",
+        element, offset
+    )
 
 # New Castle County Delaware Function
 def scrap_new_castle_county_delaware(
@@ -42,55 +52,72 @@ def scrap_new_castle_county_delaware(
             output_text,
             f"Scraping started for {country_name}. Please wait a few minutes.",
         )
-        
-        time.sleep(6)
-        # Locate the table
-        table = driver_instance.find_element(By.CLASS_NAME, "table")
-        # Extract table headers
-        headers = [
-            header.text for header in table.find_elements(By.XPATH, ".//thead//th")
-        ]
-        # Extract table rows
-        rows = []
-        for i in range(ord("a"), ord("z") + 1):
-            current_letter = chr(i)
-            print(f"Data scraping for the letter: {current_letter}")
-            dropdown = driver_instance.find_element(
-                By.XPATH, '//*[@id="main_content"]/select'
-            )
-            dropdown.send_keys(chr(i))
-            time.sleep(3)
-            # Locate the table
-            table = driver_instance.find_element(By.CLASS_NAME, "table")
-            for row in table.find_elements(By.XPATH, ".//tbody//tr"):
-                cells = [cell.text for cell in row.find_elements(By.XPATH, ".//td")]
-                if len(cells) > 1 and cells != ["No Current Records"]:
-                    rows.append(cells)
-        # Save scraped data to CSV
-        csv_file = "table_data.csv"
-        with open(csv_file, "w", newline="", encoding="utf-8") as file:
-            writer = csv.writer(file)
-            writer.writerow(headers)
-            writer.writerows(rows)
+        # table = driver_instance.find_element(By.CLASS_NAME, 'table-responsive')
+        # # Extract header data from the first row
+        # header_rows = table.find_elements(By.TAG_NAME, 'tr')
+        # header_data = []
+        # if header_rows:
+        #     header_cells = header_rows[0].find_elements(By.TAG_NAME, 'td')
+        #     for cell in header_cells:
+        #         strong_tag = cell.find_element(By.TAG_NAME, 'strong')
+        #         if strong_tag:
+        #             header_data.append(strong_tag.text)
+        # print("Header data:", header_data)
+        # rows = []
+        # for i in range(ord("a"), ord("z") + 1):
+        #     current_letter = chr(i)
+        #     print(f"Data scraping for the letter: {current_letter}")
+        #     # dropdown_element = driver_instance.find_element(By.XPATH, '//*[@id="main_content"]/select')
+        #     # print('dropdown_element')
 
-        # Load data to DataFrame
-        df = pd.read_csv(csv_file)
-        # Remove duplicate rows
-        df_cleaned = df.drop_duplicates()
+        return False, 'error_message', "", ""
+        # time.sleep(6)
+        # # Locate the table
+        # table = driver_instance.find_element(By.CLASS_NAME, "table")
+        # # Extract table headers
+        # headers = [
+        #     header.text for header in table.find_elements(By.XPATH, ".//thead//th")
+        # ]
+        # # Extract table rows
+        # rows = []
+        # for i in range(ord("a"), ord("z") + 1):
+   
+        #     dropdown = driver_instance.find_element(
+        #         By.XPATH, '//*[@id="main_content"]/select'
+        #     )
+        #     dropdown.send_keys(chr(i))
+        #     time.sleep(3)
+        #     # Locate the table
+        #     table = driver_instance.find_element(By.CLASS_NAME, "table")
+        #     for row in table.find_elements(By.XPATH, ".//tbody//tr"):
+        #         cells = [cell.text for cell in row.find_elements(By.XPATH, ".//td")]
+        #         if len(cells) > 1 and cells != ["No Current Records"]:
+        #             rows.append(cells)
+        # # Save scraped data to CSV
+        # csv_file = "table_data.csv"
+        # with open(csv_file, "w", newline="", encoding="utf-8") as file:
+        #     writer = csv.writer(file)
+        #     writer.writerow(headers)
+        #     writer.writerows(rows)
 
-        # Drop the last row
-        df_cleaned = df_cleaned.iloc[:-1]
+        # # Load data to DataFrame
+        # df = pd.read_csv(csv_file)
+        # # Remove duplicate rows
+        # df_cleaned = df.drop_duplicates()
 
-        # Save cleaned data back to CSV
-        # df_cleaned.to_csv('table_data_cleaned.csv', index=False)
-        # Delete the original CSV file
-        os.remove(csv_file)
-        return (
-            True,
-            "Data Scrapped Successfully",
-            format_location(country_name),
-            df_cleaned,
-        )
+        # # Drop the last row
+        # df_cleaned = df_cleaned.iloc[:-1]
+
+        # # Save cleaned data back to CSV
+        # # df_cleaned.to_csv('table_data_cleaned.csv', index=False)
+        # # Delete the original CSV file
+        # os.remove(csv_file)
+        # return (
+        #     True,
+        #     "Data Scrapped Successfully",
+        #     format_location(country_name),
+        #     df_cleaned,
+        # )
     except (
         NoSuchElementException,
         StaleElementReferenceException,
@@ -341,7 +368,7 @@ def scrap_sarasota_county_florida(driver, country_name, country_url, output_text
             table = driver.find_element(By.ID, "county-setup")
             rows = table.find_elements(By.TAG_NAME, "tr")
             # number_of_rows = len(rows)
-            number_of_rows = 10
+            number_of_rows = 6
             print(f"Total number of rows: {number_of_rows}")
 
             if number_of_rows > 0:
@@ -361,6 +388,7 @@ def scrap_sarasota_county_florida(driver, country_name, country_url, output_text
                     table = driver.find_element(By.ID, "county-setup")
                     rows = table.find_elements(By.TAG_NAME, "tr")
                     row = rows[i]
+                    smooth_scroll_to_element(driver, rows[i], offset_percentage=30)
                     cols = row.find_elements(By.TAG_NAME, "td")
 
                     if cols:
@@ -511,7 +539,6 @@ def scrap_sarasota_county_florida(driver, country_name, country_url, output_text
             "Case Number",
         ]
         df_final = df_final[final_columns]
-        df_final.to_csv("formatted_data.csv", index=False)
         delete_path(data_scraped)
         delete_folder(DOWNLOAD_FOLDER)
         return (
