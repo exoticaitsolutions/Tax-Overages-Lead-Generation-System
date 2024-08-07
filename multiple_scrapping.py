@@ -73,7 +73,7 @@ def scrap_new_castle_county_delaware(driver_instance, country_name, country_url,
                 EC.presence_of_element_located((By.XPATH, '//*[@id="main_content"]/select'))
             )
             select = Select(dropdown_element)
-            for i in range(ord("a"), ord("b") + 1):  # Adjust range if needed
+            for i in range(ord("a"), ord("z") + 1):  # Adjust range if needed
                 current_letter = chr(i)
                 print(f"Data scraping for the letter: {current_letter}")
                 select.select_by_visible_text(current_letter.upper())
@@ -87,12 +87,9 @@ def scrap_new_castle_county_delaware(driver_instance, country_name, country_url,
                     cells = row.find_elements(By.TAG_NAME, 'td')
                     if cells:
                         row_data = [cell.text.strip().replace('\n', ' ') for cell in cells]
-                        print('row_data', row_data)
                         if len(header_data) == len(row_data):
                             row_dict = dict(zip(header_data, row_data))
                             all_rows_data.append(row_dict)
-                            print("Row data (dict):", row_dict)
-
             with open(file_path, "w") as json_file:
                 json.dump(all_rows_data, json_file, indent=4)
         
@@ -109,7 +106,6 @@ def scrap_new_castle_county_delaware(driver_instance, country_name, country_url,
         }
         df_final = df_final.rename(columns=column_mapping)
         df_final = df_final.applymap(lambda x: x.replace(';', '') if isinstance(x, str) else x)
-        df_final.to_csv('data.csv', index=False)
         delete_path(file_path)
         delete_folder(DOWNLOAD_FOLDER)
         return (
