@@ -103,6 +103,8 @@ def scrap_new_castle_county_delaware(
         # Extract table rows
         rows = []
         for i in range(ord("a"), ord("z") + 1):
+            current_letter = chr(i)
+            print(f"Data scraping for the letter: {current_letter}")
             dropdown = driver_instance.find_element(By.XPATH, '//*[@id="main_content"]/select')
             dropdown.send_keys(chr(i))
             time.sleep(3)
@@ -120,7 +122,6 @@ def scrap_new_castle_county_delaware(
             writer = csv.writer(file)
             writer.writerow(header_data)
             writer.writerows(rows)
-
         # Load data to DataFrame
         df = pd.read_csv(csv_file)
         # Check if the last element or 'Case Number' is empty
@@ -168,7 +169,7 @@ def scrap_new_castle_county_delaware(
         df_cleaned = df_cleaned[['Last Name', 'First Name', 'Address', 'City', 'Zip Code', 'Court Held Amount', 'Sale Date', 'Case Number']]
 
         # Save to CSV with the desired column order
-        df_cleaned.to_csv('final_delaware_website_data.csv', index=False)
+        # df_cleaned.to_csv('final_delaware_website_data.csv', index=False)
         os.remove('final_delaware_website.csv')
         os.remove('table_data.csv')
         os.remove('delaware_website.csv')
