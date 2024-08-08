@@ -9,6 +9,7 @@ from selenium.common.exceptions import (
     NoSuchElementException,
     StaleElementReferenceException,
     WebDriverException,
+    TimeoutException,
 )
 from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
@@ -434,7 +435,7 @@ def scrap_sarasota_county_florida(driver, country_name, country_url, output_text
 
             table = driver.find_element(By.ID, "county-setup")
             rows = table.find_elements(By.TAG_NAME, "tr")
-            number_of_rows = 7
+            number_of_rows = len(rows)
             print(f"Total number of rows: {number_of_rows}")
             if number_of_rows > 0:
                 header_data = [
@@ -539,14 +540,32 @@ def scrap_sarasota_county_florida(driver, country_name, country_url, output_text
                                 )
                                 time.sleep(5)
 
-                                # Click the specific element
-                                element = WebDriverWait(driver, 10).until(
-                                    EC.presence_of_element_located(
-                                        (By.XPATH, '//*[@id="publicSection"]/div[2]/table[2]/tbody/tr/td[4]/strong')
+                                try:
+                                    # Click the specific element
+                                    element = WebDriverWait(driver, 10).until(
+                                        EC.presence_of_element_located(
+                                            (By.XPATH, '//*[@id="publicSection"]/div[2]/table[2]/tbody/tr/td[4]/strong')
+                                        )
                                     )
-                                )
-                                element.click()
-                                print(f"Clicked the element for row {i}")
+                                    element.click()
+                                    print(f"Clicked the element for row {i}")
+                                except (TimeoutException, NoSuchElementException, StaleElementReferenceException, WebDriverException) as e:
+                                    print(f"Exception type: {type(e).__name__}")
+                                    print(f"Retrying with alternative XPath for row {i}...")
+                                    try:
+                                        # Retry with the alternative XPath
+                                        element = WebDriverWait(driver, 10).until(
+                                            EC.presence_of_element_located(
+                                                (By.XPATH, '//*[@id="publicSection"]/div[2]/table[3]/tbody/tr/td[4]/strong')
+                                            )
+                                        )
+                                        element.click()
+                                        print(f"Clicked the element for row {i} using alternative XPath")
+                                    except (NoSuchElementException, StaleElementReferenceException, WebDriverException) as e:
+                                        print(f"Exception details: {str(e)}")
+                                        print(f"Failed to click the element for row {i} with both XPaths")
+                                        print(f"Data cannot be retrieved for this row.")
+
 
                                  # Scroll down to the specified XPath element
                                 scroll_target = WebDriverWait(driver, 10).until(
@@ -625,12 +644,11 @@ def scrap_sarasota_county_florida(driver, country_name, country_url, output_text
             format_location(country_name),
             df_final,
         )
-    except (
-        NoSuchElementException,
-        StaleElementReferenceException,
-        WebDriverException,
-    ) as e:
-        print(f"Internal Error Occurred: {e}")
+    except (NoSuchElementException, StaleElementReferenceException, WebDriverException) as e:
+        print(f"Exception details: {str(e)}")
+        print(f"Exception type: {type(e).__name__}")
+        print(f"URL at time of error: {driver.current_url}")
+        print(f"Page source at error: {driver.page_source[:500]}")  # Prints first 500 chars of the page source
         if "driver" in locals():
             driver.quit()
         return (
@@ -639,6 +657,21 @@ def scrap_sarasota_county_florida(driver, country_name, country_url, output_text
             "",
             "",
         )
+
+    # except (
+    #     NoSuchElementException,
+    #     StaleElementReferenceException,
+    #     WebDriverException,
+    # ) as e:
+    #     print(f"Internal Error Occurred: {e}")
+    #     if "driver" in locals():
+    #         driver.quit()
+    #     return (
+    #         False,
+    #         "Internal Error Occurred while running application. Please Try Again!!",
+    #         "",
+    #         "",
+    #     )
 
 
 
