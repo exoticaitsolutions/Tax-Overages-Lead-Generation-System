@@ -375,7 +375,6 @@ def scrap_sumter_county_florida(
 
 
 # Sarasota County Florida Function
-# Sarasota County Florida Function
 def scrap_sarasota_county_florida(driver, country_name, country_url, output_text):
     os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
     data_scraped = os.path.join(DOWNLOAD_FOLDER, "data_scraped.json")
@@ -432,7 +431,11 @@ def scrap_sarasota_county_florida(driver, country_name, country_url, output_text
             select.select_by_value("100")
             print("Selected value 100")
             time.sleep(10)
-
+            # Wait for the "Page 3" button to be clickable, then click it
+            page_2_button = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH, '//button[@class="btn" and @data-page="3"]'))
+            )
+            page_2_button.click()
             table = driver.find_element(By.ID, "county-setup")
             rows = table.find_elements(By.TAG_NAME, "tr")
             number_of_rows = len(rows)

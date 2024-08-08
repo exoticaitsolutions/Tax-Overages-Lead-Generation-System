@@ -9,6 +9,7 @@ from selenium.common.exceptions import (
     NoSuchElementException,
     StaleElementReferenceException,
     WebDriverException,
+    TimeoutException,
 )
 from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
@@ -29,7 +30,51 @@ from utils import (
 
 # Utility function to scrape table data
 
-
+def smooth_scroll_to_element(driver, element, offset_percentage=10):
+    """Scroll the page until the element is in view with a specified offset."""
+    # Calculate the viewport height and the offset in pixels
+    viewport_height = driver.execute_script("return window.innerHeight")
+    offset = viewport_height * (offset_percentage / 100.0)
+    # Scroll to the element with the offset
+    driver.execute_script(
+        "window.scrollTo({ top: arguments[0].offsetTop - arguments[1], behavior: 'smooth' });",
+        element, offset
+    )
+# Function to split Address into City, State, and Zip Code and update Address
+def split_and_update_address(address):
+    if pd.isna(address):
+        return pd.Series([None, None])
+    
+    # Split address from the last comma
+    parts = address.rsplit(',', 2)
+    
+    if len(parts) == 3:
+        remaining_address = parts[0].strip()
+        city = parts[1].strip()
+        state_zip = parts[2].strip()
+        # Separate state and zip code from the state_zip part
+        state_zip_parts = state_zip.split(' ', 1)
+        if len(state_zip_parts) == 2:
+            zip_code = state_zip_parts[1].strip()
+        else:
+            zip_code = state_zip_parts[0].strip()
+    elif len(parts) == 2:
+        remaining_address = parts[0].strip()
+        city_zip = parts[1].strip()
+        city_parts = city_zip.split(' ')
+        city = ' '.join(city_parts[:-1]).strip()
+        zip_code = city_parts[-1].strip()
+    else:
+        remaining_address = address
+        city = None
+        zip_code = None
+    
+    # Validate and clean Zip Code to ensure it's numeric
+    if zip_code and zip_code.isdigit():
+        return pd.Series([remaining_address, city, f"{zip_code}"])
+    else:
+        return pd.Series([remaining_address, city])
+    
 # New Castle County Delaware Function
 def scrap_new_castle_county_delaware(
     driver_instance, country_name, country_url, output_text
@@ -42,49 +87,98 @@ def scrap_new_castle_county_delaware(
             output_text,
             f"Scraping started for {country_name}. Please wait a few minutes.",
         )
-        
         time.sleep(6)
         # Locate the table
         table = driver_instance.find_element(By.CLASS_NAME, "table")
-        # Extract table headers
-        headers = [
-            header.text for header in table.find_elements(By.XPATH, ".//thead//th")
-        ]
+        header_rows = table.find_elements(By.TAG_NAME, 'tr')
+        header_data = []
+        if header_rows:
+            header_cells = header_rows[0].find_elements(By.TAG_NAME, 'td')
+            for cell in header_cells:
+                strong_tag = cell.find_element(By.TAG_NAME, 'strong')
+                if strong_tag:
+                    header_text = strong_tag.text.strip().replace('\n', ' ')
+                    header_data.append(header_text)
+
+
         # Extract table rows
         rows = []
         for i in range(ord("a"), ord("z") + 1):
             current_letter = chr(i)
             print(f"Data scraping for the letter: {current_letter}")
-            dropdown = driver_instance.find_element(
-                By.XPATH, '//*[@id="main_content"]/select'
-            )
+            dropdown = driver_instance.find_element(By.XPATH, '//*[@id="main_content"]/select')
             dropdown.send_keys(chr(i))
             time.sleep(3)
             # Locate the table
-            table = driver_instance.find_element(By.CLASS_NAME, "table")
-            for row in table.find_elements(By.XPATH, ".//tbody//tr"):
-                cells = [cell.text for cell in row.find_elements(By.XPATH, ".//td")]
-                if len(cells) > 1 and cells != ["No Current Records"]:
+            table = driver_instance.find_element(By.CLASS_NAME, 'table')
+            for row in table.find_elements(By.XPATH, './/tbody//tr'):
+                cells = [cell.text for cell in row.find_elements(By.XPATH, './/td')]
+                if len(cells) > 1 and cells != ['No Current Records']:
                     rows.append(cells)
+
+
         # Save scraped data to CSV
         csv_file = "table_data.csv"
         with open(csv_file, "w", newline="", encoding="utf-8") as file:
             writer = csv.writer(file)
-            writer.writerow(headers)
+            writer.writerow(header_data)
             writer.writerows(rows)
-
         # Load data to DataFrame
         df = pd.read_csv(csv_file)
+        # Check if the last element or 'Case Number' is empty
+        last_element_empty = df.iloc[:, -1].isna()
+        case_number_empty = df['Case Number'].isna()
+
+        # Get rows where either the last element or 'Case Number' is empty
+        empty_rows = last_element_empty | case_number_empty
+
+        # Store the current values temporarily
+        temp_case_number = df.loc[empty_rows, 'Case Number']
+        temp_sale_date = df.loc[empty_rows, 'Sale Date']
+        temp_court_held_amount = df.loc[empty_rows, 'Court-Held Amount']
+        temp_address = df.loc[empty_rows, 'Address (Sheriff\'s Sale)']
+
+        # Perform the replacements
+        df.loc[empty_rows, 'Case Number'] = temp_sale_date
+        df.loc[empty_rows, 'Sale Date'] = temp_court_held_amount
+        df.loc[empty_rows, 'Court-Held Amount'] = temp_address
+        df.loc[empty_rows, 'Address (Sheriff\'s Sale)'] = df.loc[empty_rows, 'First Name']
+        df.loc[empty_rows, 'First Name'] = "Null"
+
+        # Rename columns as per the mapping
+        df.rename(columns={
+            'Last Name or Business Name': 'Last Name',
+            'First Name': 'First Name',
+            'Address (Sheriff\'s Sale)': 'Address',
+            'Court-Held Amount': 'Court Held Amount',
+            'Sale Date': 'Sale Date',
+            'Case Number': 'Case Number'
+        }, inplace=True)
+        # Apply the function to split the Address and update the Address column
+        df[['Address', 'City', 'Zip Code']] = df['Address'].apply(split_and_update_address)
+
         # Remove duplicate rows
         df_cleaned = df.drop_duplicates()
 
         # Drop the last row
         df_cleaned = df_cleaned.iloc[:-1]
+        df_cleaned.to_csv('delaware_website.csv', index=False)
+        df = pd.read_csv('delaware_website.csv')
+        df_cleaned = df[df['Last Name'] != 'Last Name or Business Name']
+        df_cleaned = df_cleaned.dropna(how='all')
+        df_cleaned.to_csv('final_delaware_website.csv', index=False)
+        df_cleaned = df_cleaned[['Last Name', 'First Name', 'Address', 'City', 'Zip Code', 'Court Held Amount', 'Sale Date', 'Case Number']]
+
+        # Save to CSV with the desired column order
+        # df_cleaned.to_csv('final_delaware_website_data.csv', index=False)
+        os.remove('final_delaware_website.csv')
+        os.remove('table_data.csv')
+        os.remove('delaware_website.csv')
 
         # Save cleaned data back to CSV
         # df_cleaned.to_csv('table_data_cleaned.csv', index=False)
         # Delete the original CSV file
-        os.remove(csv_file)
+        # os.remove(csv_file)
         return (
             True,
             "Data Scrapped Successfully",
@@ -104,6 +198,7 @@ def scrap_new_castle_county_delaware(
     finally:
         if "driver_instance" in locals():
             driver_instance.quit()
+
 
 
 # Sumter County Florida Function
@@ -283,6 +378,7 @@ def scrap_sumter_county_florida(
 def scrap_sarasota_county_florida(driver, country_name, country_url, output_text):
     os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
     data_scraped = os.path.join(DOWNLOAD_FOLDER, "data_scraped.json")
+    
     try:
         if check_file_downloaded(DOWNLOAD_FOLDER, "data_scraped.json"):
             data_scraped = os.path.join(DOWNLOAD_FOLDER, "data_scraped.json")
@@ -290,8 +386,7 @@ def scrap_sarasota_county_florida(driver, country_name, country_url, output_text
             all_data_rows1 = []
             print_the_output_statement(output_text, f"Opening the site {country_url}")
             driver.get(country_url)
-            time.sleep(10)
-            # driver.save_screenshot('screenshot.png')
+            time.sleep(5)
             print_the_output_statement(
                 output_text,
                 f"Scraping started for {country_name}. Please wait a few minutes.",
@@ -318,7 +413,7 @@ def scrap_sarasota_county_florida(driver, country_name, country_url, output_text
                 By.XPATH, "/html/body/div[8]/div/ul/li[2]/a/span"
             )
             starplus_element.click()
-            time.sleep(3)
+            time.sleep(2)
             search_button = driver.find_element(
                 By.XPATH, '//button[@class="btn btn-success filters-submit"]'
             )
@@ -327,150 +422,217 @@ def scrap_sarasota_county_florida(driver, country_name, country_url, output_text
                 output_text,
                 "Please wait, data is being found according to the criteria",
             )
-            time.sleep(10)
-
-            # Process rows
-            select_element = WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.ID, "resultsPerPage"))
-            )
+            time.sleep(4)
+            # Pagination Handling
+            page_number = 1
+            # Start pagination
+            select_element = WebDriverWait(driver, 4).until(
+                    EC.presence_of_element_located((By.ID, "resultsPerPage"))
+                )
             select = Select(select_element)
             select.select_by_value("100")
             print("Selected value 100")
             time.sleep(10)
-
             table = driver.find_element(By.ID, "county-setup")
             rows = table.find_elements(By.TAG_NAME, "tr")
-            # number_of_rows = len(rows)
-            number_of_rows = 10
-            print(f"Total number of rows: {number_of_rows}")
-
-            if number_of_rows > 0:
-                # Extract the header from the table
-                header_data = [
-                    col.text for col in rows[0].find_elements(By.TAG_NAME, "th")
-                ]
-                header_data = header_data or [
-                    col.text for col in rows[0].find_elements(By.TAG_NAME, "td")
-                ]
-                if header_data and header_data[0] == "":
-                    header_data.pop(0)
-                print("header_data", header_data)
-
-                for i in range(1, number_of_rows):  # Loop through all rows
-                    print(f"Data scraping for table row {i} out of {number_of_rows}")
-                    table = driver.find_element(By.ID, "county-setup")
-                    rows = table.find_elements(By.TAG_NAME, "tr")
-                    row = rows[i]
-                    cols = row.find_elements(By.TAG_NAME, "td")
-
-                    if cols:
-                        row_data = [col.text.strip() for col in cols]
-                        if any(row_data):
-                            row_data.pop(0)
-                            if len(header_data) == len(row_data):
-                                row_dict = dict(zip(header_data, row_data))
-                                # Initialize outer_layer as a list
-                                outer_layer = []
-                                outer_layer.append(
-                                    {"row_uuid": i, "outer_layer": row_dict}
-                                )
-                                WebDriverWait(driver, 20).until(
-                                    EC.element_to_be_clickable(rows[i])
-                                ).click()
-                                print(f"Clicked the row {i}")
-                                # Summary tab functionality
-                                wait_and_click(
-                                    driver,
-                                    By.XPATH,
-                                    '//*[@id="publicSection"]/div[1]/a[1]',
-                                )
-                                print(
-                                    f"Please wait, data scraping of the Summary tab section for row {i}"
-                                )
-                                time.sleep(5)
-                                summary_section = WebDriverWait(driver, 10).until(
-                                    EC.presence_of_element_located(
-                                        (By.ID, "summarySummary")
+            header_data = [
+                        col.text for col in rows[0].find_elements(By.TAG_NAME, "th")
+                    ]
+            header_data = header_data or [
+                        col.text for col in rows[0].find_elements(By.TAG_NAME, "td")
+                    ]
+            if header_data and header_data[0] == "":
+                        header_data.pop(0)
+            print("header_data", header_data)
+            while True:
+                table = driver.find_element(By.ID, "county-setup")
+                rows = table.find_elements(By.TAG_NAME, "tr")
+                number_of_rows = len(rows)
+                print(f"Total number of rows on this page: {number_of_rows}")
+                if number_of_rows > 0:
+                
+                    for i in range(1, number_of_rows):  # Loop through all rows
+                        print(f"Data scraping for table row {i} out of {number_of_rows}")
+                        table = driver.find_element(By.ID, "county-setup")
+                        rows = table.find_elements(By.TAG_NAME, "tr")
+                        row = rows[i]
+                        driver.execute_script("window.scrollBy(0, window.innerHeight * 0.5);")
+                        cols = row.find_elements(By.TAG_NAME, "td")
+                        if cols:
+                            row_data = [col.text.strip() for col in cols]
+                            if any(row_data):
+                                row_data.pop(0)
+                                if len(header_data) == len(row_data):
+                                    row_dict = dict(zip(header_data, row_data))
+                                    outer_layer = []
+                                    outer_layer.append(
+                                        {"row_uuid": i, "outer_layer": row_dict}
                                     )
-                                )
-                                details_table = summary_section.find_element(
-                                    By.CLASS_NAME, "table"
-                                )
-                                detail_rows = details_table.find_elements(
-                                    By.TAG_NAME, "tr"
-                                )
-                                for row in detail_rows:
-                                    cells = row.find_elements(By.TAG_NAME, "td")
-                                    if cells:
-                                        header = cells[0].text.strip()
-                                        if "Property Address" in header:
-                                            address = cells[1].text.strip()
-                                            outer_layer[0]["Property Address"] = address
+                                    WebDriverWait(driver, 20).until(
+                                        EC.element_to_be_clickable(rows[i])
+                                    ).click()
+                                    print(f"Clicked the row {i}")
 
-                                # Party tab functionality
-                                wait_and_click(
-                                    driver,
-                                    By.XPATH,
-                                    '//*[@id="publicSection"]/div[1]/a[2]',
-                                )
-                                print(
-                                    f"Please wait, data scraping of the Party tab section for row {i}"
-                                )
-                                time.sleep(5)
-                                party_table = driver.find_element(
-                                    By.CLASS_NAME, "table-public"
-                                )
-                                headers = party_table.find_elements(
-                                    By.XPATH, ".//thead//th"
-                                )
-                                party_headers = [
-                                    header.text.strip() for header in headers
-                                ]
-                                party_rows = party_table.find_elements(
-                                    By.XPATH, ".//tbody//tr"
-                                )
-                                party_data = []  # Reset party_data for each row
-                                for row in party_rows:
-                                    cols = row.find_elements(By.XPATH, ".//td")
-                                    row_data = [col.text.strip() for col in cols]
-                                    row_dict = dict(zip(party_headers, row_data))
-                                    party_data.append(row_dict)
-                                outer_layer[0]["Party Data"] = party_data
-
-                                # Disbursements tab functionality
-                                wait_and_click(
-                                    driver,
-                                    By.XPATH,
-                                    '//*[@id="publicSection"]/div[1]/a[8]',
-                                )
-                                print(
-                                    f"Please wait, data scraping of the Disbursements tab section for row {i}"
-                                )
-                                time.sleep(5)
-                                element = WebDriverWait(driver, 10).until(
-                                    EC.presence_of_element_located(
-                                        (
-                                            By.XPATH,
-                                            '//*[@id="publicSection"]/div[2]/table[2]/tbody/tr/td[4]/strong',
+                                    # Summary tab functionality
+                                    wait_and_click(
+                                        driver,
+                                        By.XPATH,
+                                        '//*[@id="publicSection"]/div[1]/a[1]',
+                                    )
+                                    print(
+                                        f"Please wait, data scraping of the Summary tab section for row {i}"
+                                    )
+                                    time.sleep(5)
+                                    summary_section = WebDriverWait(driver, 10).until(
+                                        EC.presence_of_element_located(
+                                            (By.ID, "summarySummary")
                                         )
                                     )
-                                )
-                                text_value = element.text.strip()
-                                outer_layer[0]["Surplus Amount"] = text_value
-                                back_button = WebDriverWait(driver, 10).until(
-                                    EC.element_to_be_clickable(
-                                        (
-                                            By.CSS_SELECTOR,
-                                            "button.btn.btn-back-to-case-list",
+                                    details_table = summary_section.find_element(
+                                        By.CLASS_NAME, "table"
+                                    )
+                                    detail_rows = details_table.find_elements(
+                                        By.TAG_NAME, "tr"
+                                    )
+                                    for row in detail_rows:
+                                        cells = row.find_elements(By.TAG_NAME, "td")
+                                        if cells:
+                                            header = cells[0].text.strip()
+                                            if "Property Address" in header:
+                                                address = cells[1].text.strip()
+                                                outer_layer[0]["Property Address"] = address
+
+                                    # Party tab functionality
+                                    wait_and_click(
+                                        driver,
+                                        By.XPATH,
+                                        '//*[@id="publicSection"]/div[1]/a[2]',
+                                    )
+                                    print(
+                                        f"Please wait, data scraping of the Party tab section for row {i}"
+                                    )
+                                    time.sleep(5)
+                                    party_table = driver.find_element(
+                                        By.CLASS_NAME, "table-public"
+                                    )
+                                    headers = party_table.find_elements(
+                                        By.XPATH, ".//thead//th"
+                                    )
+                                    party_headers = [
+                                        header.text.strip() for header in headers
+                                    ]
+                                    party_rows = party_table.find_elements(
+                                        By.XPATH, ".//tbody//tr"
+                                    )
+                                    party_data = []  # Reset party_data for each row
+                                    for row in party_rows:
+                                        cols = row.find_elements(By.XPATH, ".//td")
+                                        row_data = [col.text.strip() for col in cols]
+                                        row_dict = dict(zip(party_headers, row_data))
+                                        party_data.append(row_dict)
+                                    outer_layer[0]["Party Data"] = party_data
+
+                                    # Disbursements tab functionality
+                                    wait_and_click(
+                                        driver,
+                                        By.XPATH,
+                                        '//*[@id="publicSection"]/div[1]/a[8]',
+                                    )
+                                    print(
+                                        f"Please wait, data scraping of the Disbursements tab section for row {i}"
+                                    )
+                                    time.sleep(5)
+
+                                    try:
+                                        # Click the specific element
+                                        element = WebDriverWait(driver, 10).until(
+                                            EC.presence_of_element_located(
+                                                (By.XPATH, '//*[@id="publicSection"]/div[2]/table[2]/tbody/tr/td[4]/strong')
+                                            )
+                                        )
+                                        element.click()
+                                        print(f"Clicked the element for row {i}")
+                                    except (TimeoutException, NoSuchElementException, StaleElementReferenceException, WebDriverException) as e:
+                                        print(f"Exception type: {type(e).__name__}")
+                                        print(f"Retrying with alternative XPath for row {i}...")
+                                        try:
+                                            # Retry with the alternative XPath
+                                            element = WebDriverWait(driver, 10).until(
+                                                EC.presence_of_element_located(
+                                                    (By.XPATH, '//*[@id="publicSection"]/div[2]/table[3]/tbody/tr/td[4]/strong')
+                                                )
+                                            )
+                                            element.click()
+                                            print(f"Clicked the element for row {i} using alternative XPath")
+                                        except (NoSuchElementException, StaleElementReferenceException, WebDriverException) as e:
+                                            print(f"Exception details: {str(e)}")
+                                            print(f"Failed to click the element for row {i} with both XPaths")
+                                            print(f"Data cannot be retrieved for this row.")
+
+                                    # Scroll down to the specified XPath element
+                                    scroll_target = WebDriverWait(driver, 10).until(
+                                        EC.presence_of_element_located(
+                                            (By.XPATH, '//*[@id="publicSection"]/div[2]/div[4]')
                                         )
                                     )
-                                )
-                                back_button.click()
-                                print(f"Clicked the back button for row {i}")
-                                time.sleep(10)
+                                    driver.execute_script("arguments[0].scrollIntoView();", scroll_target)
+                                    time.sleep(3)  
+                                    
+                                    text_value = element.text.strip()
+                                    outer_layer[0]["Surplus Amount"] = text_value
+                                    
+                                    # Scroll back up
+                                    driver.execute_script("window.scrollBy(0, -window.innerHeight);")
+                                    time.sleep(3)  # Allow time for the scroll effect
 
-                                # Add collected data to final list
-                                all_data_rows1.append(outer_layer)
+                                    # Click the back button
+                                    back_button = WebDriverWait(driver, 10).until(
+                                        EC.element_to_be_clickable(
+                                            (By.CSS_SELECTOR, "button.btn.btn-back-to-case-list")
+                                        )
+                                    )
+                                    back_button.click()
+                                    print(f"Clicked the back button for row {i}")
+                                    time.sleep(5)
+
+                                    # Add collected data to final list
+                                    all_data_rows1.append(outer_layer)
+                # Pagination: Go to the next page
+                try:
+                    # Locate pagination buttons
+                    pagination_buttons = driver.find_elements(By.CSS_SELECTOR, "span.btn-group button.btn")
+                    pages = [btn.get_attribute("data-page") for btn in pagination_buttons if btn.get_attribute("data-page")]
+
+                    # Determine if there are more pages
+                    if not pages:
+                        print("No pagination buttons found.")
+                        break
+                    # Convert pages to integers and sort them
+                    pages = sorted(set(map(int, pages)))
+
+                    # Get the current page number
+                    current_page = int(driver.find_element(By.CSS_SELECTOR, "button.btn.active").get_attribute("data-page"))
+                    
+                    # Check if the current page is the last page or if the next page button is disabled
+                    next_page_button = driver.find_element(By.CSS_SELECTOR, f"button.btn[data-page='{current_page + 1}']")
+                    
+                    if 'disabled' in next_page_button.get_attribute('class'):
+                        print("No more pages to navigate.")
+                        break
+
+                    # Check if the next page number is in the available pages
+                    if current_page + 1 not in pages:
+                        print(f"Next page {current_page + 1} is not available.")
+                        break
+
+                    # Click the button for the next page
+                    next_page_button.click()
+                    print(f"Navigating to page {current_page + 1}...")
+                    time.sleep(10)  # Wait for the next page to load
+                except (NoSuchElementException, WebDriverException) as e:
+                    print(f"Exception encountered during pagination: {str(e)}")
+                    break
+
             with open(data_scraped, "w") as json_file:
                 json.dump(all_data_rows1, json_file, indent=4)
 
@@ -481,19 +643,19 @@ def scrap_sarasota_county_florida(driver, country_name, country_url, output_text
                 outer_layer = entity["outer_layer"]
                 party_data = entity["Party Data"]
                 for party in party_data:
-                    formatted_party = {
-                        "Name": party["Name"],
-                        "Party Type": party["Party Type"],
-                        "Property Owner Address": f"{party['Street Address']}, {party['City']}, {party['State']} {party['Zip']}, {party['Country']}",
-                        "Property Address": entity["Property Address"],
-                        "Surplus Amount": entity["Surplus Amount"],
-                        "Case Number": outer_layer["Case Number"],
-                        "Surplus Balance": outer_layer["Surplus Balance"],
-                        "Parcel Number": outer_layer["Parcel Number"],
-                        "Case Number": outer_layer["Case Number"],
-                        "Sale Date": outer_layer["Sale Date"],
-                    }
-                    formatted_data1.append(formatted_party)
+                    if party["Party Type"] == "OWNER":
+                        formatted_party = {
+                            "Name": party["Name"],
+                            "Party Type": party["Party Type"],
+                            "Property Owner Address": f"{party['Street Address']}, {party['City']}, {party['State']} {party['Zip']}, {party['Country']}",
+                            "Property Address": entity["Property Address"],
+                            "Surplus Amount": entity["Surplus Amount"],
+                            "Case Number": outer_layer["Case Number"],
+                            "Surplus Balance": outer_layer["Surplus Balance"],
+                            "Parcel Number": outer_layer["Parcel Number"],
+                            "Sale Date": outer_layer["Sale Date"],
+                        }
+                        formatted_data1.append(formatted_party)
         print("formatted_data1", formatted_data1)
         # Convert the data to a pandas DataFrame
         df_final = pd.DataFrame(formatted_data1)
@@ -511,7 +673,6 @@ def scrap_sarasota_county_florida(driver, country_name, country_url, output_text
             "Case Number",
         ]
         df_final = df_final[final_columns]
-        df_final.to_csv("formatted_data.csv", index=False)
         delete_path(data_scraped)
         delete_folder(DOWNLOAD_FOLDER)
         return (
@@ -520,12 +681,11 @@ def scrap_sarasota_county_florida(driver, country_name, country_url, output_text
             format_location(country_name),
             df_final,
         )
-    except (
-        NoSuchElementException,
-        StaleElementReferenceException,
-        WebDriverException,
-    ) as e:
-        print(f"Internal Error Occurred: {e}")
+    except (NoSuchElementException, StaleElementReferenceException, WebDriverException) as e:
+        print(f"Exception details: {str(e)}")
+        print(f"Exception type: {type(e).__name__}")
+        print(f"URL at time of error: {driver.current_url}")
+        print(f"Page source at error: {driver.page_source[:500]}")  # Prints first 500 chars of the page source
         if "driver" in locals():
             driver.quit()
         return (
@@ -534,7 +694,6 @@ def scrap_sarasota_county_florida(driver, country_name, country_url, output_text
             "",
             "",
         )
-
 
 # Polk County Florida Function
 def scrap_polk_county_florida(driver_instance, country_name, country_url, output_text):
