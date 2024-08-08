@@ -374,6 +374,7 @@ def scrap_sumter_county_florida(
 
 
 # Sarasota County Florida Function
+# Sarasota County Florida Function
 def scrap_sarasota_county_florida(driver, country_name, country_url, output_text):
     os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
     data_scraped = os.path.join(DOWNLOAD_FOLDER, "data_scraped.json")
@@ -384,8 +385,7 @@ def scrap_sarasota_county_florida(driver, country_name, country_url, output_text
             all_data_rows1 = []
             print_the_output_statement(output_text, f"Opening the site {country_url}")
             driver.get(country_url)
-            time.sleep(10)
-            # driver.save_screenshot('screenshot.png')
+            time.sleep(5)
             print_the_output_statement(
                 output_text,
                 f"Scraping started for {country_name}. Please wait a few minutes.",
@@ -412,7 +412,7 @@ def scrap_sarasota_county_florida(driver, country_name, country_url, output_text
                 By.XPATH, "/html/body/div[8]/div/ul/li[2]/a/span"
             )
             starplus_element.click()
-            time.sleep(3)
+            time.sleep(2)
             search_button = driver.find_element(
                 By.XPATH, '//button[@class="btn btn-success filters-submit"]'
             )
@@ -421,10 +421,10 @@ def scrap_sarasota_county_florida(driver, country_name, country_url, output_text
                 output_text,
                 "Please wait, data is being found according to the criteria",
             )
-            time.sleep(10)
+            time.sleep(4)
 
             # Process rows
-            select_element = WebDriverWait(driver, 10).until(
+            select_element = WebDriverWait(driver, 4).until(
                 EC.presence_of_element_located((By.ID, "resultsPerPage"))
             )
             select = Select(select_element)
@@ -434,11 +434,9 @@ def scrap_sarasota_county_florida(driver, country_name, country_url, output_text
 
             table = driver.find_element(By.ID, "county-setup")
             rows = table.find_elements(By.TAG_NAME, "tr")
-            # number_of_rows = len(rows)
-            number_of_rows = 6
+            number_of_rows = 7
             print(f"Total number of rows: {number_of_rows}")
             if number_of_rows > 0:
-                # Extract the header from the table
                 header_data = [
                     col.text for col in rows[0].find_elements(By.TAG_NAME, "th")
                 ]
@@ -454,7 +452,7 @@ def scrap_sarasota_county_florida(driver, country_name, country_url, output_text
                     table = driver.find_element(By.ID, "county-setup")
                     rows = table.find_elements(By.TAG_NAME, "tr")
                     row = rows[i]
-                    driver.execute_script("window.scrollBy(0, window.innerHeight * 0.3);")
+                    driver.execute_script("window.scrollBy(0, window.innerHeight * 0.5);")
                     cols = row.find_elements(By.TAG_NAME, "td")
                     if cols:
                         row_data = [col.text.strip() for col in cols]
@@ -462,7 +460,6 @@ def scrap_sarasota_county_florida(driver, country_name, country_url, output_text
                             row_data.pop(0)
                             if len(header_data) == len(row_data):
                                 row_dict = dict(zip(header_data, row_data))
-                                # Initialize outer_layer as a list
                                 outer_layer = []
                                 outer_layer.append(
                                     {"row_uuid": i, "outer_layer": row_dict}
@@ -471,6 +468,7 @@ def scrap_sarasota_county_florida(driver, country_name, country_url, output_text
                                     EC.element_to_be_clickable(rows[i])
                                 ).click()
                                 print(f"Clicked the row {i}")
+
                                 # Summary tab functionality
                                 wait_and_click(
                                     driver,
@@ -540,27 +538,41 @@ def scrap_sarasota_county_florida(driver, country_name, country_url, output_text
                                     f"Please wait, data scraping of the Disbursements tab section for row {i}"
                                 )
                                 time.sleep(5)
+
+                                # Click the specific element
                                 element = WebDriverWait(driver, 10).until(
                                     EC.presence_of_element_located(
-                                        (
-                                            By.XPATH,
-                                            '//*[@id="publicSection"]/div[2]/table[2]/tbody/tr/td[4]/strong',
-                                        )
+                                        (By.XPATH, '//*[@id="publicSection"]/div[2]/table[2]/tbody/tr/td[4]/strong')
                                     )
                                 )
+                                element.click()
+                                print(f"Clicked the element for row {i}")
+
+                                 # Scroll down to the specified XPath element
+                                scroll_target = WebDriverWait(driver, 10).until(
+                                    EC.presence_of_element_located(
+                                        (By.XPATH, '//*[@id="publicSection"]/div[2]/div[4]')
+                                    )
+                                )
+                                driver.execute_script("arguments[0].scrollIntoView();", scroll_target)
+                                time.sleep(3)  
+                                
                                 text_value = element.text.strip()
                                 outer_layer[0]["Surplus Amount"] = text_value
+                                
+                                # Scroll back up
+                                driver.execute_script("window.scrollBy(0, -window.innerHeight);")
+                                time.sleep(3)  # Allow time for the scroll effect
+
+                                # Click the back button
                                 back_button = WebDriverWait(driver, 10).until(
                                     EC.element_to_be_clickable(
-                                        (
-                                            By.CSS_SELECTOR,
-                                            "button.btn.btn-back-to-case-list",
-                                        )
+                                        (By.CSS_SELECTOR, "button.btn.btn-back-to-case-list")
                                     )
                                 )
                                 back_button.click()
                                 print(f"Clicked the back button for row {i}")
-                                time.sleep(10)
+                                time.sleep(5)
 
                                 # Add collected data to final list
                                 all_data_rows1.append(outer_layer)
@@ -574,19 +586,20 @@ def scrap_sarasota_county_florida(driver, country_name, country_url, output_text
                 outer_layer = entity["outer_layer"]
                 party_data = entity["Party Data"]
                 for party in party_data:
-                    formatted_party = {
-                        "Name": party["Name"],
-                        "Party Type": party["Party Type"],
-                        "Property Owner Address": f"{party['Street Address']}, {party['City']}, {party['State']} {party['Zip']}, {party['Country']}",
-                        "Property Address": entity["Property Address"],
-                        "Surplus Amount": entity["Surplus Amount"],
-                        "Case Number": outer_layer["Case Number"],
-                        "Surplus Balance": outer_layer["Surplus Balance"],
-                        "Parcel Number": outer_layer["Parcel Number"],
-                        "Case Number": outer_layer["Case Number"],
-                        "Sale Date": outer_layer["Sale Date"],
-                    }
-                    formatted_data1.append(formatted_party)
+                    if party["Party Type"] == "OWNER":
+                        formatted_party = {
+                            "Name": party["Name"],
+                            "Party Type": party["Party Type"],
+                            "Property Owner Address": f"{party['Street Address']}, {party['City']}, {party['State']} {party['Zip']}, {party['Country']}",
+                            "Property Address": entity["Property Address"],
+                            "Surplus Amount": entity["Surplus Amount"],
+                            "Case Number": outer_layer["Case Number"],
+                            "Surplus Balance": outer_layer["Surplus Balance"],
+                            "Parcel Number": outer_layer["Parcel Number"],
+                            "Case Number": outer_layer["Case Number"],
+                            "Sale Date": outer_layer["Sale Date"],
+                        }
+                        formatted_data1.append(formatted_party)
         print("formatted_data1", formatted_data1)
         # Convert the data to a pandas DataFrame
         df_final = pd.DataFrame(formatted_data1)
@@ -626,6 +639,7 @@ def scrap_sarasota_county_florida(driver, country_name, country_url, output_text
             "",
             "",
         )
+
 
 
 # Polk County Florida Function
