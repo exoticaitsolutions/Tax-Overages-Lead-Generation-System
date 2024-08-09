@@ -233,46 +233,123 @@ def scrap_sumter_county_florida(
             main_download_file = os.path.join(DOWNLOAD_FOLDER, "Tax Deed Surplus.pdf")
             print(f"Downladed the  the pdf {main_download_file}")
         print("main_download_file", main_download_file)
-        arrClean = []
         with pdfplumber.open(main_download_file) as pdf:
             for page_number, page in enumerate(pdf.pages):
-                tables = page.extract_tables()
-                table = tables[0]
-                data_rows = table[1:]  # Skip the header row
-                # print('newMessage', data_rows)
-                arrData = []
-                
-                for index, value in enumerate(data_rows):
-                    if index > 3:
-                        arrData.append(value)
-                dummyData = []
-                address = ''
-                a = 1
-                for index, value in enumerate(arrData):
-                    # print('value', value)
-                    if a == 1:
-                        dummyData.append(value)
-                        a = a + 1
-                    elif not value[0]:
-                        a = 1
-                        dummyData[0].insert(1, address)
-                        address = ''
-                        arrClean.append(dummyData[0])
-                        dummyData = []
-                    else:
-                        address += value[0]
-        print('Array: ', arrClean)
-        merged_df = pd.DataFrame(arrClean, columns=['PROPERTY OWNER', 'PROPERTY ADDRESS', 'APPLICATION','SALE DATE', 'AMOUNT OF SURPLUS','PARCEL','APPLICATION DATE','CLAIMS'])
-        # csv_file_name = os.path.join(os.getcwd(), "cleaned_data.csv")  # Save in current directory
-        # merged_df.to_csv(csv_file_name, index=False)
-        # print(f"Saved cleaned data to {csv_file_name}")
-        delete_path(main_download_file)
-        delete_folder(DOWNLOAD_FOLDER)
+                    tables = page.extract_tables()
+                    table = tables[0]
+                    data_rows = table[1:]  # Skip the header row
+                    # print('newMessage', data_rows)
+                    arrData = []
+                    arrClean = []
+                    for index, value in enumerate(data_rows):
+                        if index > 3:
+                            arrData.append(value)
+                    dummyData = []
+                    address = ''
+                    a = 1
+                    for index, value in enumerate(arrData):
+                        # print('value', value)
+                        if a == 1:
+                            dummyData.append(value)
+                            a = a + 1
+                        elif not value[0]:
+                            a = 1
+                            dummyData[0].insert(1, address)
+                            address = ''
+                            arrClean.append(dummyData[0])
+                            dummyData = []
+                        else:
+                            address += value[0]
+                            
+                    print('Array: ', arrClean)
+        df = pd.DataFrame(arrClean, columns=['PROPERTY OWNER', 'PROPERTY ADDRESS', 'APPLICATION','SALE DATE', 'AMOUNT OF SURPLUS','PARCEL','APPLICATION DATE','CLAIMS'])
+        csv_file_name = os.path.join(os.getcwd(), "cleaned_data.csv")  # Save in current directory
+        df.to_csv(csv_file_name, index=False)
+        print(f"Saved cleaned data to {csv_file_name}")
+        #     for page in pdf.pages:
+        #         tables = page.extract_tables()
+        #         for table in tables:
+        #             df = pd.DataFrame(table[1:], columns=table[0])
+        #             df = df.apply(
+        #                 lambda x: (
+        #                     x.str.replace("LIST LAST UPDATED 7/5/2024", "", regex=False)
+        #                     if x.dtype == "object"
+        #                     else x
+        #                 )
+        #             )
+        #             df = df.apply(
+        #                 lambda x: (
+        #                     x.str.replace(
+        #                         "ALL FUNDS LISTED ARE STILL HELD BY CLERK",
+        #                         "",
+        #                         regex=False,
+        #                     )
+        #                     if x.dtype == "object"
+        #                     else x
+        #                 )
+        #             )
+        #             df = df.dropna(how="all")
+        #             df = df[
+        #                 df.apply(
+        #                     lambda row: row.astype(str).str.strip().ne("").any(), axis=1
+        #                 )
+        #             ]
+        #             all_tables.append(df)
+
+        # if not all_tables:
+        #     if "driver_instance" in locals():
+        #         driver_instance.quit()
+        #     return False, "No tables found in the PDF.", "", ""
+
+        # print("Combining all tables into one DataFrame...")
+        # combined_df = pd.concat(all_tables, ignore_index=True).dropna(how="all")
+        # combined_df = combined_df[
+        #     combined_df.apply(
+        #         lambda row: row.astype(str).str.strip().ne("").any(), axis=1
+        #     )
+        # ]
+        # combined_df = combined_df.fillna("Nill")
+        # print('messages', combined_df)
+        # # Process to handle empty rows by filling with "Nill"
+        # even_rows = combined_df.iloc[::2].reset_index(drop=True)
+        # odd_rows = combined_df.iloc[1::2].reset_index(drop=True)
+        # odd_rows = odd_rows.reindex(even_rows.index, fill_value=pd.NA)
+        # merged_df = pd.concat([even_rows, odd_rows.add_suffix("_Odd")], axis=1)
+
+        # column_mapping = {
+        #     "PROPERTY OWNER & ADDRESS": "Property Owner",
+        #     "PROPERTY OWNER & ADDRESS_Odd": "Property Address",
+        #     "PARCEL #": "Parcel #",
+        #     "AMOUNT OF SURPLUS": "Amount of Surplus",
+        #     "SALE DATE": "Sale Date",
+        #     "APPLICATION DATE": "Application Date",
+        # }
+        # merged_df = merged_df.rename(columns=column_mapping)
+
+        # final_columns = [
+        #     "Property Owner",
+        #     "Property Address",
+        #     "Sale Date",
+        #     "Amount of Surplus",
+        #     "Parcel #",
+        #     "Application Date",
+        # ]
+        # # Ensure all final columns are present and fill missing columns with "Nill"
+        # for col in final_columns:
+        #     if col not in merged_df.columns:
+        #         merged_df[col] = "Nill"
+
+        # merged_df = merged_df[final_columns]
+        # merged_df = merged_df.replace(
+        #     {pd.NA: "Nill", pd.NaT: "Nill"}
+        # )  # Handle missing values
+        # delete_path(main_download_file)
+        # delete_folder(DOWNLOAD_FOLDER)
         return (
-            True,
+            False,
             "Data Scrapped Successfully",
             format_location(country_name),
-            merged_df,
+            'merged_df',
         )
     except pd.errors.EmptyDataError:
         print("No data found in the PDF.")
