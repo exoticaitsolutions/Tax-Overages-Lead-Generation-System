@@ -2,14 +2,21 @@ import json
 import os
 import importlib.util
 import shutil
+import sys
+import time
 import pandas as pd
+from selenium.common.exceptions import (
+    NoSuchElementException,
+    StaleElementReferenceException,
+    WebDriverException,
+    TimeoutException,
+)
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from PyQt5.QtWidgets import QDesktopWidget
 from PyQt5.QtWidgets import QMessageBox
 from PyQt5.QtGui import QTextCursor
-import sys
 
 from config import PHONE_BURNER_USER_ID
 
@@ -284,3 +291,15 @@ def has_significant_data(data):
             return True
         # Add more criteria if needed
     return False
+
+def find_element_with_retry(driver_instance, by, value, retries=3, wait_time=3):
+        for _ in range(retries):
+            try:
+                element = WebDriverWait(driver_instance, wait_time).until(
+                    EC.presence_of_element_located((by, value))
+                )
+                return element
+            except StaleElementReferenceException:
+                print("Stale element reference. Retrying...")
+                time.sleep(wait_time)
+        raise NoSuchElementException(f"Element with {by} and {value} could not be found.")

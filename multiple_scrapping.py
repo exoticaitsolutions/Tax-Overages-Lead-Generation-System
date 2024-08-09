@@ -22,6 +22,7 @@ from utils import (
     check_file_downloaded,
     delete_folder,
     delete_path,
+    find_element_with_retry,
     format_location,
     print_the_output_statement,
     read_json_file,
@@ -217,120 +218,122 @@ def scrap_sumter_county_florida(
             output_text,
             f"Scraping started for {country_name}. Please wait a few minutes.",
         )
-
         if check_file_downloaded(DOWNLOAD_FOLDER, "Tax Deed Surplus.pdf"):
             main_download_file = os.path.join(DOWNLOAD_FOLDER, "Tax Deed Surplus.pdf")
         else:
-            download_button_xpath = "/html/body/div[3]/main/div[2]/div/section/div/div/div/div/div/div[1]/ul[2]/li[2]/strong/a"
-            actions = ActionChains(driver_instance)
-            download_element = driver_instance.find_element(
-                By.XPATH, download_button_xpath
-            )
-            actions.move_to_element(download_element).click().perform()
-            print(f"download_element element is found and clicked ")
-            time.sleep(10)
-            wait = WebDriverWait(driver_instance, 60)
-            download_path = wait.until(
-                EC.presence_of_element_located(
-                    (
-                        By.XPATH,
-                        "/html/body/div[1]/div[4]/div/div[3]/div[2]/div[2]/div[2]/div",
-                    )
-                )
-            )
-            actions.move_to_element(download_path).click().perform()
-            print(f"download_path is found and clicked")
-            print("Downlading the pdf ............................................")
+            driver_instance.get(country_url)
             time.sleep(5)
+            download_button_xpath = find_element_with_retry(driver_instance, By.XPATH, '/html/body/div[3]/main/div[2]/div/section/div/div/div/div/div/div[1]/ul[2]/li[2]/strong/a')
+            download_button_xpath.click()
+            print('download_button_xpath element is found and clicked successfully')
+            time.sleep(5)
+            forcelly_dowload_x_path = find_element_with_retry(driver_instance, By.XPATH, '/html/body/div[1]/div[4]/div/div[3]/div[2]/div[2]/div[2]')
+            forcelly_dowload_x_path.click()
+            print('forcelly_dowload_x_path element is found and clicked successfully')
+            print("Downlading the pdf ............................................")
+            time.sleep(10)
             main_download_file = os.path.join(DOWNLOAD_FOLDER, "Tax Deed Surplus.pdf")
             print(f"Downladed the  the pdf {main_download_file}")
         print("main_download_file", main_download_file)
-
         with pdfplumber.open(main_download_file) as pdf:
-            for page in pdf.pages:
-                tables = page.extract_tables()
-                for table in tables:
-                    df = pd.DataFrame(table[1:], columns=table[0])
-                    df = df.apply(
-                        lambda x: (
-                            x.str.replace("LIST LAST UPDATED 7/5/2024", "", regex=False)
-                            if x.dtype == "object"
-                            else x
-                        )
-                    )
-                    df = df.apply(
-                        lambda x: (
-                            x.str.replace(
-                                "ALL FUNDS LISTED ARE STILL HELD BY CLERK",
-                                "",
-                                regex=False,
-                            )
-                            if x.dtype == "object"
-                            else x
-                        )
-                    )
-                    df = df.dropna(how="all")
-                    df = df[
-                        df.apply(
-                            lambda row: row.astype(str).str.strip().ne("").any(), axis=1
-                        )
-                    ]
-                    all_tables.append(df)
+            for page_number, page in enumerate(pdf.pages):
+                if page_number == 0:  # Check if it's the first page
+                    tables = page.extract_tables()
+                    table = tables[0]
+                    data_rows = table[1:]  # Skip the header row
+                    print('data_rows', data_rows)
+                    fisr_data_array = []
+                    second_index =[]
+                    for index, value in enumerate(data_rows):
+                        if index > 3:
+                            fisr_data_array.append(value[0])
+                            second_index.append(value[0])
+                    print('fisr_data_array', fisr_data_array)
+                    print('second_index', second_index)
+        #     for page in pdf.pages:
+        #         tables = page.extract_tables()
+        #         for table in tables:
+        #             df = pd.DataFrame(table[1:], columns=table[0])
+        #             df = df.apply(
+        #                 lambda x: (
+        #                     x.str.replace("LIST LAST UPDATED 7/5/2024", "", regex=False)
+        #                     if x.dtype == "object"
+        #                     else x
+        #                 )
+        #             )
+        #             df = df.apply(
+        #                 lambda x: (
+        #                     x.str.replace(
+        #                         "ALL FUNDS LISTED ARE STILL HELD BY CLERK",
+        #                         "",
+        #                         regex=False,
+        #                     )
+        #                     if x.dtype == "object"
+        #                     else x
+        #                 )
+        #             )
+        #             df = df.dropna(how="all")
+        #             df = df[
+        #                 df.apply(
+        #                     lambda row: row.astype(str).str.strip().ne("").any(), axis=1
+        #                 )
+        #             ]
+        #             all_tables.append(df)
 
-        if not all_tables:
-            if "driver_instance" in locals():
-                driver_instance.quit()
-            return False, "No tables found in the PDF.", "", ""
+        # if not all_tables:
+        #     if "driver_instance" in locals():
+        #         driver_instance.quit()
+        #     return False, "No tables found in the PDF.", "", ""
 
-        print("Combining all tables into one DataFrame...")
-        combined_df = pd.concat(all_tables, ignore_index=True).dropna(how="all")
-        combined_df = combined_df[
-            combined_df.apply(
-                lambda row: row.astype(str).str.strip().ne("").any(), axis=1
-            )
-        ]
-        combined_df = combined_df.fillna("Nill")
+        # print("Combining all tables into one DataFrame...")
+        # combined_df = pd.concat(all_tables, ignore_index=True).dropna(how="all")
+        # combined_df = combined_df[
+        #     combined_df.apply(
+        #         lambda row: row.astype(str).str.strip().ne("").any(), axis=1
+        #     )
+        # ]
+        # combined_df = combined_df.fillna("Nill")
 
-        # Process to handle empty rows by filling with "Nill"
-        even_rows = combined_df.iloc[::2].reset_index(drop=True)
-        odd_rows = combined_df.iloc[1::2].reset_index(drop=True)
-        odd_rows = odd_rows.reindex(even_rows.index, fill_value=pd.NA)
-        merged_df = pd.concat([even_rows, odd_rows.add_suffix("_Odd")], axis=1)
+        # # Process to handle empty rows by filling with "Nill"
+        # even_rows = combined_df.iloc[::2].reset_index(drop=True)
+        # odd_rows = combined_df.iloc[1::2].reset_index(drop=True)
+        # odd_rows = odd_rows.reindex(even_rows.index, fill_value=pd.NA)
+        # merged_df = pd.concat([even_rows, odd_rows.add_suffix("_Odd")], axis=1)
 
-        column_mapping = {
-            "PROPERTY OWNER & ADDRESS": "Property Owner",
-            "PROPERTY OWNER & ADDRESS_Odd": "Property Address",
-            "PARCEL #": "Parcel #",
-            "AMOUNT OF SURPLUS": "Amount of Surplus",
-            "SALE DATE": "Sale Date",
-            "APPLICATION DATE": "Application Date",
-        }
-        merged_df = merged_df.rename(columns=column_mapping)
+        # column_mapping = {
+        #     "PROPERTY OWNER & ADDRESS": "Property Owner",
+        #     "PROPERTY OWNER & ADDRESS_Odd": "Property Address",
+        #     "PARCEL #": "Parcel #",
+        #     "AMOUNT OF SURPLUS": "Amount of Surplus",
+        #     "SALE DATE": "Sale Date",
+        #     "APPLICATION DATE": "Application Date",
+        # }
+        # merged_df = merged_df.rename(columns=column_mapping)
 
-        final_columns = [
-            "Property Owner",
-            "Property Address",
-            "Sale Date",
-            "Amount of Surplus",
-            "Parcel #",
-            "Application Date",
-        ]
-        # Ensure all final columns are present and fill missing columns with "Nill"
-        for col in final_columns:
-            if col not in merged_df.columns:
-                merged_df[col] = "Nill"
+        # final_columns = [
+        #     "Property Owner",
+        #     "Property Address",
+        #     "Sale Date",
+        #     "Amount of Surplus",
+        #     "Parcel #",
+        #     "Application Date",
+        # ]
+        # # Ensure all final columns are present and fill missing columns with "Nill"
+        # for col in final_columns:
+        #     if col not in merged_df.columns:
+        #         merged_df[col] = "Nill"
 
-        merged_df = merged_df[final_columns]
-        merged_df = merged_df.replace(
-            {pd.NA: "Nill", pd.NaT: "Nill"}
-        )  # Handle missing values
-        delete_path(main_download_file)
-        delete_folder(DOWNLOAD_FOLDER)
+        # merged_df = merged_df[final_columns]
+        # merged_df = merged_df.replace(
+        #     {pd.NA: "Nill", pd.NaT: "Nill"}
+        # )  # Handle missing values
+        # delete_path(main_download_file)
+        # delete_folder(DOWNLOAD_FOLDER)
         return (
-            True,
+            False,
             "Data Scrapped Successfully",
             format_location(country_name),
-            merged_df,
+            'merged_df',
         )
     except pd.errors.EmptyDataError:
         print("No data found in the PDF.")
@@ -660,24 +663,6 @@ def scrap_sarasota_county_florida(driver, country_name, country_url, output_text
             "",
             "",
         )
-
-    # except (
-    #     NoSuchElementException,
-    #     StaleElementReferenceException,
-    #     WebDriverException,
-    # ) as e:
-    #     print(f"Internal Error Occurred: {e}")
-    #     if "driver" in locals():
-    #         driver.quit()
-    #     return (
-    #         False,
-    #         "Internal Error Occurred while running application. Please Try Again!!",
-    #         "",
-    #         "",
-    #     )
-
-
-
 # Polk County Florida Function
 def scrap_polk_county_florida(driver_instance, country_name, country_url, output_text):
     all_tables = []
