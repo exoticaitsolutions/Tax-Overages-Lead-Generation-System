@@ -1,0 +1,12 @@
+PyQt5
+screeninfo
+Babel
+black
+numpy
+pyinstaller
+selenium
+pandas
+pdfplumber
+PyPDF2
+openpyxl
+requests
