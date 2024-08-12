@@ -1,18 +1,32 @@
-import importlib
 import json
 import os
+import importlib.util
 import shutil
-from PyQt5.QtWidgets import QDesktopWidget
+import sys
+import time
+import pandas as pd
+from selenium.common.exceptions import (
+    NoSuchElementException,
+    StaleElementReferenceException,
+    WebDriverException,
+    TimeoutException,
+)
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.common.by import By
+
+from PyQt5.QtWidgets import QMessageBox , QDesktopWidget
 from PyQt5.QtGui import QTextCursor
-from PyQt5.QtWidgets import QMessageBox
+
+from config import PHONE_BURNER_USER_ID
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+def wait_and_click(driver, locator_type, locator_value, wait_time=30):
+    WebDriverWait(driver, wait_time).until(EC.element_to_be_clickable((locator_type, locator_value))).click()
+
 
 def center_window(window):
-    """
-    Centers the given window on the screen.
-
-    Parameters:
-        window (QWidget): The window to be centered.
-    """
     qr = window.frameGeometry()
     cp = QDesktopWidget().availableGeometry().center()
     qr.moveCenter(cp)
@@ -20,15 +34,6 @@ def center_window(window):
 
 
 def read_json_from_file(filename):
-    """
-    Reads JSON data from a file.
-
-    Parameters:
-        filename (str): The path to the JSON file to be read.
-
-    Returns:
-        dict or None: The JSON data as a dictionary if successful, or None if an error occurs.
-    """
     try:
         with open(filename, "r") as file:
             # Load JSON data from the file
@@ -45,28 +50,7 @@ def read_json_from_file(filename):
         return None
 
 
-def print_the_output_statement(output_text, message,html_print):
-        """Updates the output text with the provided HTML message."""
-        if html_print:
-            output_text.setHtml(f"<b>{message}</b> \n \n")
-        else:
-            output_text.append(f"<b>{message}</b> \n \n")
-
-        output_text.moveCursor(QTextCursor.End)
-        print(message)
-
-
 def show_message_box(parent, icon_type, title, text):
-    """
-    Displays a message box with specified icon, title, and text.
-    Parameters:
-        parent (QWidget): The parent widget for the message box.
-        icon_type (QMessageBox.Icon): The icon type to be displayed in the message box (e.g., QMessageBox.Information, QMessageBox.Warning, QMessageBox.Question).
-        title (str): The title of the message box window.
-        text (str): The text message to be displayed in the message box.
-    Returns:
-        int: The result of the message box (e.g., QMessageBox.Yes, QMessageBox.No, QMessageBox.Ok).
-    """
     msg_box = QMessageBox(parent)
     msg_box.setIcon(icon_type)
     msg_box.setWindowTitle(title)
@@ -78,6 +62,28 @@ def show_message_box(parent, icon_type, title, text):
     )
     return msg_box.exec_()
 
+
+def print_the_output_statement(output, message):
+    output.append(f"<b>{message}</b> \n \n")
+    # Print the message to the console
+    output.moveCursor(QTextCursor.End)
+    print(message)
+
+
+def check_file_downloaded(download_dir, filename):
+    """Check if the specified file has been downloaded."""
+    files = os.listdir(download_dir)
+    if filename in files:
+        print(f"File '{filename}' successfully downloaded.")
+        return True
+    print(f"File '{filename}' not found in the download directory.")
+    return False
+
+
+def save_to_csv(df, csv_path):
+    """Save the DataFrame to a CSV file."""
+    df.to_csv(csv_path, index=False, encoding="utf-8")
+    print(f"Filtered and cleaned data saved to {csv_path}")
 
 
 def get_function(function_name):
@@ -125,19 +131,6 @@ def get_function(function_name):
     
 
 
-def save_to_csv(df, csv_path):
-    """Save the DataFrame to a CSV file."""
-    df.to_csv(csv_path, index=False, encoding="utf-8")
-    print(f"Filtered and cleaned data saved to {csv_path}")
-
-
-
-def format_location(country_name):
-    formatted_location = country_name.replace(" ", "_").lower()
-    return formatted_location
-
-
-
 def delete_folder(folder_path):
     """
     Delete a folder and all its contents.
@@ -175,3 +168,129 @@ def delete_path(path):
             print(f"Path '{path}' does not exist or is not a file or directory.")
     except Exception as e:
         print(f"An error occurred while deleting the path: {e}")
+
+
+def xlsx_to_json(xlsx_file_path):
+    df = pd.read_excel(xlsx_file_path)
+    data_dict = df.to_dict(orient="records")
+    json_data = json.dumps(data_dict, indent=4)
+    num_records = len(df)
+    header_columns = list(df.columns)
+    return header_columns, json_data, num_records
+
+
+def modification_the_json(json_data_str):
+    header_mapping = {
+        "First Name": "first_name",
+        "Last Name": "last_name",
+        "Email": "email",
+        "Phone": "phone",
+        "Address Line 1": "address1",
+        "Address Line 2": "address2",
+        "City": "city",
+        "State": "state",
+        "Zip": "zip",
+        "owner_id": "owner_id",
+    }
+
+    # Load the JSON data from the string
+    data = json.loads(json_data_str)
+
+    # Check if data is a list
+    if not isinstance(data, list):
+        raise ValueError("JSON data must be a list of records")
+
+    # Define the PHONE_BURNER_USER_ID (passed as argument)
+    phone_burner_user_id = str(PHONE_BURNER_USER_ID)
+    # Iterate through each record and modify it
+    modified_data = []
+    for record in data:
+        new_record = {}
+        for old_key, new_key in header_mapping.items():
+            if old_key in record:
+                new_record[new_key] = record[old_key]
+        new_record["owner_id"] = phone_burner_user_id
+        modified_data.append(new_record)
+
+    # Convert modified data to JSON string with indentation
+    modified_json_data_str = json.dumps(modified_data, indent=4)
+    # Get the length of the modified data
+    data_length = len(modified_data)
+
+    # Return both the modified JSON string and its length
+    return json.loads(json.dumps(modified_data, indent=4)), data_length
+
+
+def format_location(country_name):
+    formatted_location = country_name.replace(" ", "_").lower()
+    return formatted_location
+
+
+def mask_password(password: str) -> str:
+    return "*" * len(password)
+
+
+def update_json_file(new_data):
+    """
+    Update the JSON file with new data. If the file does not exist, it will be created.
+    
+    Parameters:
+    - file_path (str): The path to the JSON file.
+    - new_data (dict): A dictionary containing the new data to update.
+    """
+    # Read the existing data from the JSON file
+    try:
+        file_path = "token.json"
+        with open(file_path, "r") as file:
+            data = json.load(file)
+    except FileNotFoundError:
+        # If the file doesn't exist, start with an empty dictionary
+        data = {}
+
+    # Check and update the data
+    for key, value in new_data.items():
+        if key in data:
+            print(f"Key '{key}' found. Updating value to '{value}'")
+        else:
+            print(f"Key '{key}' not found. Adding key '{key}' with value '{value}'")
+
+    # Update the data dictionary with the new data
+    data.update(new_data)
+
+    # Write the updated data back to the JSON file
+    with open(file_path, "w") as file:
+        json.dump(data, file, indent=4)
+
+    print(f"Data has been updated in {file_path}")
+
+def has_significant_data(data):
+    """
+    Check if the data has significant content. 
+    This function can be adjusted based on what you consider as 'significant'.
+    """
+    if data:
+        # Example criteria for 'significant' data:
+        # Check if it's a non-empty dictionary or list
+        if isinstance(data, (dict, list)) and len(data) > 0:
+            return True
+        # Add more criteria if needed
+    return False
+
+def find_element_with_retry(driver_instance, by, value, retries=3, wait_time=10):
+        for _ in range(retries):
+            try:
+                element = WebDriverWait(driver_instance, wait_time).until(
+                    EC.presence_of_element_located((by, value))
+                )
+                return element
+            except StaleElementReferenceException:
+                print("Stale element reference. Retrying...")
+                time.sleep(wait_time)
+        raise NoSuchElementException(f"Element with {by} and {value} could not be found.")
+
+
+def handle_exception(exception, driver_instance):
+    print(f"An error occurred: {exception}")
+    if driver_instance:
+        driver_instance.quit()
+    return False, f"An error occurred: {exception}", "", ""
