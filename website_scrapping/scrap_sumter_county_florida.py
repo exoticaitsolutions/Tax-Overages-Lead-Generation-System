@@ -27,7 +27,6 @@ def scrap_sumter_county_florida(driver_instance, country_name, country_url, outp
     main_download_file = os.path.join(DOWNLOAD_FOLDER, "Tax Deed Surplus.pdf")
     print_the_output_statement(output_text, f"Opening the site {country_url}")
     try:
-        
         print_the_output_statement(
             output_text,
             f"Scraping started for {country_name}. Please wait a few minutes.",

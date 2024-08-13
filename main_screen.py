@@ -108,21 +108,21 @@ class MainWindow(QMainWindow):
         layout.addLayout(form_layout)
 
         form_layout.addWidget(QLabel("<b>Select a County for Scrapping:</b>"))
-        self.country_combo_box = QComboBox()
-        self.country_combo_box.addItem("Select County")
+        self.county_combo_box = QComboBox()
+        self.county_combo_box.addItem("Select County")
         data = read_json_from_file(JSON_FILE_NAME)
         if data:
             for website in data.get("websites", []):
                 name = website.get("name")
                 url = website.get("url")
                 function_name = website.get("function_name")
-                self.country_combo_box.addItem(name, (url, function_name))
+                self.county_combo_box.addItem(name, (url, function_name))
         else:
-            self.country_combo_box.addItem("No countries available")
-        self.country_combo_box.setFont(font)
-        self.country_combo_box.setStyleSheet("height: 30px;")
-        form_layout.addWidget(self.country_combo_box)
-        self.country_combo_box.currentIndexChanged.connect(self.on_country_selected)
+            self.county_combo_box.addItem("No countries available")
+        self.county_combo_box.setFont(font)
+        self.county_combo_box.setStyleSheet("height: 30px;")
+        form_layout.addWidget(self.county_combo_box)
+        self.county_combo_box.currentIndexChanged.connect(self.on_country_selected)
         form_layout.addWidget(
             QLabel("<i>Please choose a County from the dropdown menu.</i>")
         )
@@ -166,7 +166,7 @@ class MainWindow(QMainWindow):
         """Handles the event when a county is selected from the combo box.
         Enables or disables buttons based on whether a valid country is selected."""
         # Handle country selection
-        current_index = self.country_combo_box.currentIndex()
+        current_index = self.county_combo_box.currentIndex()
         if current_index > 0:  # Check if a valid country is selected
             # self.scrapping_button.setEnabled(True)
             # self.integrate_with_crm_button.setEnabled(False)
@@ -231,7 +231,7 @@ class MainWindow(QMainWindow):
         ValueError: If the selected scraping function is not callable or does not exist.
     """
         self.output_text.clear()
-        index = self.country_combo_box.currentIndex()
+        index = self.county_combo_box.currentIndex()
         self.scrapping_button.setEnabled(False)
         if index == 0:
             show_message_box(
@@ -241,8 +241,8 @@ class MainWindow(QMainWindow):
                 "No country selected. Please choose a county from the dropdown menu.",
             )
         else:
-            name = self.country_combo_box.currentText()
-            url, function_name = self.country_combo_box.itemData(index)
+            name = self.county_combo_box.currentText()
+            url, function_name = self.county_combo_box.itemData(index)
             print(f'selected box \n name = {name} \n County url = {url} \n new custom function = {function_name}' )
             scrapping_function = get_function(function_name)
             if callable(scrapping_function):
