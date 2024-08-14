@@ -4,13 +4,21 @@ import time
 
 import pdfplumber
 from config import DOWNLOAD_FOLDER
-from utils import check_file_downloaded, delete_folder, delete_path, format_location, handle_exception, print_the_output_statement
+from utils import (
+    check_file_downloaded,
+    delete_folder,
+    delete_path,
+    format_location,
+    handle_exception,
+    print_the_output_statement,
+)
 from selenium.common.exceptions import (
     NoSuchElementException,
     StaleElementReferenceException,
     WebDriverException,
 )
 import pandas as pd
+
 
 def scrap_shasta_county_california(driver, country_name, country_url, output_text):
     """
@@ -31,14 +39,14 @@ def scrap_shasta_county_california(driver, country_name, country_url, output_tex
             pdf_url = "https://www.shastacounty.gov/sites/default/files/fileattachments/tax_collector/page/2691/tax_sale_results_1.pdf"
             print_the_output_statement(
                 output_text,
-                f"Scraping started for {country_name}. Please wait a few minutes."
+                f"Scraping started for {country_name}. Please wait a few minutes.",
             )
             driver.get(pdf_url)
             print("Downloading the PDF ............................................")
             time.sleep(10)  # Increased wait time
             pdf_path = os.path.join(DOWNLOAD_FOLDER, "tax_sale_results_1.pdf")
             print(f"Downloaded the PDF at {pdf_path}")
-        print("PDF Path:", pdf_path)   
+        print("PDF Path:", pdf_path)
         data = []
         with pdfplumber.open(pdf_path) as pdf:
             for page in pdf.pages:
@@ -49,8 +57,10 @@ def scrap_shasta_county_california(driver, country_name, country_url, output_tex
                 for line in pdf_text.split("\n"):
                     match = pattern.match(line)
                     if match:
-                        data.append(match.groups()[1:6])  # Extract groups from regex match
-        print('data',data)
+                        data.append(
+                            match.groups()[1:6]
+                        )  # Extract groups from regex match
+        print("data", data)
         # Create DataFrame
         columns = [
             "Parcel Number",
@@ -62,15 +72,19 @@ def scrap_shasta_county_california(driver, country_name, country_url, output_tex
         merged_df = pd.DataFrame(data, columns=columns)
         # Clean up
         delete_path(pdf_path)
-        delete_folder(DOWNLOAD_FOLDER) 
-        
+        delete_folder(DOWNLOAD_FOLDER)
+
         return (
             True,
             "Data Scrapped Successfully",
             format_location(country_name),
             merged_df,
         )
-    except (NoSuchElementException, StaleElementReferenceException, WebDriverException) as e:
+    except (
+        NoSuchElementException,
+        StaleElementReferenceException,
+        WebDriverException,
+    ) as e:
         return handle_exception(e, driver)
     except (OSError, IOError, ValueError) as e:
         return handle_exception(e, driver)

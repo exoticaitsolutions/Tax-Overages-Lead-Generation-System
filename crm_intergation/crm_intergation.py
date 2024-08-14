@@ -2,7 +2,12 @@ import json
 import requests
 import time
 from config import *
-from utils import mask_password, modification_the_json, read_json_from_file, update_json_file
+from utils import (
+    mask_password,
+    modification_the_json,
+    read_json_from_file,
+    update_json_file,
+)
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import (
     NoSuchElementException,
@@ -104,16 +109,16 @@ def generate_new_refresh_token():
 
 
 def validate_and_generate_new_token():
-    file_path = 'token.json'
-# Write the data to token.json
+    file_path = "token.json"
+    # Write the data to token.json
     if not os.path.exists(file_path):
         # File does not exist, create it with initial data
-        with open(file_path, 'w') as json_file:
-            json.dump({
-                "code": "",
-                "access_token": "",
-                "refresh_token": ""
-            }, json_file, indent=4)
+        with open(file_path, "w") as json_file:
+            json.dump(
+                {"code": "", "access_token": "", "refresh_token": ""},
+                json_file,
+                indent=4,
+            )
         print(f"{file_path} has been created with initial data.")
     else:
         print(f"{file_path} already exists.")

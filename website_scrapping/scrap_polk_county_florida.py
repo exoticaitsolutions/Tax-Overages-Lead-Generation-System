@@ -17,11 +17,10 @@ def scrap_polk_county_florida(driver_instance, country_name, country_url, output
         time.sleep(5)
         print_the_output_statement(
             output_text,
-            f"Scraping started for {country_name}. Please wait a few minutes."
+            f"Scraping started for {country_name}. Please wait a few minutes.",
         )
         box = driver_instance.find_element(By.XPATH, '//*[@id="isPasted"]')
         print("isPasted element is foumd")
-        # Locate the table within the box
         table = box.find_element(By.TAG_NAME, "tbody")
         # Locate the title row within the box
         title = box.find_element(By.TAG_NAME, "thead")
@@ -69,7 +68,11 @@ def scrap_polk_county_florida(driver_instance, country_name, country_url, output
             format_location(country_name),
             merged_df,
         )
-    except (NoSuchElementException, StaleElementReferenceException, WebDriverException) as e:
+    except (
+        NoSuchElementException,
+        StaleElementReferenceException,
+        WebDriverException,
+    ) as e:
         return handle_exception(e, driver_instance)
     except (OSError, IOError, ValueError) as e:
         return handle_exception(e, driver_instance)

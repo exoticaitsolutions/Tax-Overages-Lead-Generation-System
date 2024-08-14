@@ -1,8 +1,19 @@
+import asyncio
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-from config import *
+
+from config import DOWNLOAD_FOLDER, HEADLESS, HEIGHT, WIDTH
+
 
 def initialize_driver(loop):
+    """
+    Initializes a Selenium WebDriver instance with specified Chrome options.
+    Args:
+        loop (asyncio.AbstractEventLoop): The asyncio event loop to set.
+
+    Returns:
+        webdriver.Chrome: Configured Chrome WebDriver instance.
+    """
     print("initialize_driver")
     chrome_options = Options()
     asyncio.set_event_loop(loop)
@@ -26,10 +37,8 @@ def initialize_driver(loop):
         },
     )
     chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument('--disable-dev-shm-usage')
-    chrome_options.add_argument('--enable-logging')
-    chrome_options.add_argument('--v=1')  # Set the verbosity level for logging
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--enable-logging")
+    chrome_options.add_argument("--v=1")  # Set the verbosity level for logging
     chrome_options.add_argument("--disable-software-rasterizer")
-
-    # service = Service(chromedriver_path)
     return webdriver.Chrome(service="", options=chrome_options)

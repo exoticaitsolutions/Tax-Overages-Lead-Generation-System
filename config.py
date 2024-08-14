@@ -4,6 +4,7 @@ import asyncio
 import time
 from screeninfo import get_monitors
 import os
+
 APP_TITLE = "Surplus Funds/Tax Overages Lead Generation System"
 APP_NAME = APP_TITLE
 JSON_FILE_NAME = "websites.json"
