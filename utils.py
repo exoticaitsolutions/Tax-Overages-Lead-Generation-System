@@ -257,7 +257,7 @@ def xlsx_to_json(xlsx_file_path: str) -> Tuple[List[str], str, int]:
 
 
 def modification_the_json(
-    json_data_str: str, phone_burner_user_id: Any
+    json_data_str: str
 ) -> Tuple[Dict[str, Any], int]:
     """
     Modify JSON data by renaming keys according to a header mapping and adding an 'owner_id' field.
